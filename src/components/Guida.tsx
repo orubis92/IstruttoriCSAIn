@@ -323,6 +323,24 @@ const SEZIONI: Sezione[] = [
     ),
   },
   {
+    id: 'informativa-privacy',
+    titolo: 'Informativa privacy',
+    ruoli: ['PROGRAMMATORE'],
+    contenuto: (
+      <>
+        <p>
+          Dalle <b>Impostazioni</b> gestisci il testo dell'<b>informativa privacy</b> che viene
+          mostrata a tutti gli utenti al primo accesso, con richiesta di consenso. Il testo iniziale
+          è un modello da far verificare a un riferimento privacy.
+        </p>
+        <p>
+          Spuntando <b>«Pubblica come nuova versione»</b> tutti gli utenti dovranno prestare di nuovo
+          il consenso. Ogni consenso viene registrato con data e versione.
+        </p>
+      </>
+    ),
+  },
+  {
     id: 'privacy',
     titolo: 'Privacy e dati',
     contenuto: (

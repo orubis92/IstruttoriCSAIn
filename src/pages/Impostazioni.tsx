@@ -4,7 +4,7 @@ import { ImagePlus, Trash2 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/components/Toast'
 import { aggiornaAsd } from '@/api/asd'
-import { getLogoCsain, aggiornaLogoCsain } from '@/api/piattaforma'
+import { getLogoCsain, aggiornaLogoCsain, getPrivacy, aggiornaPrivacy } from '@/api/piattaforma'
 import { messaggioErrore } from '@/api/errors'
 import { Card, PageHeader, Field, Spinner, Alert } from '@/components/ui'
 
@@ -88,7 +88,10 @@ export default function Impostazioni() {
       <div>
         <PageHeader titolo="Impostazioni" sottotitolo={isProgrammatore ? 'Piattaforma' : undefined} />
         {isProgrammatore ? (
-          <SezioneLogoCsain />
+          <div className="space-y-4">
+            <SezioneLogoCsain />
+            <SezionePrivacy />
+          </div>
         ) : (
           <Alert tono="blu">
             Il tuo account non è associato a una ASD, quindi non ci sono dati da configurare qui.
@@ -104,8 +107,9 @@ export default function Impostazioni() {
 
       <div className="grid gap-4 lg:grid-cols-2">
         {isProgrammatore && (
-          <div className="lg:col-span-2">
+          <div className="space-y-4 lg:col-span-2">
             <SezioneLogoCsain />
+            <SezionePrivacy />
           </div>
         )}
         {/* Logo */}
@@ -268,6 +272,68 @@ function SezioneLogoCsain() {
           )}
         </div>
       </div>
+    </Card>
+  )
+}
+
+function SezionePrivacy() {
+  const toast = useToast()
+  const qc = useQueryClient()
+  const q = useQuery({ queryKey: ['privacy'], queryFn: getPrivacy })
+  const [testo, setTesto] = useState('')
+  const [nuovaVersione, setNuovaVersione] = useState(false)
+
+  useEffect(() => {
+    if (q.data) setTesto(q.data.testo ?? '')
+  }, [q.data])
+
+  const salva = useMutation({
+    mutationFn: () => {
+      const versione = (q.data?.versione ?? 1) + (nuovaVersione ? 1 : 0)
+      return aggiornaPrivacy(testo, versione)
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['privacy'] })
+      qc.invalidateQueries({ queryKey: ['consenso-privacy'] })
+      setNuovaVersione(false)
+      toast.successo('Informativa aggiornata.')
+    },
+    onError: (e) => toast.errore(messaggioErrore(e)),
+  })
+
+  return (
+    <Card className="p-5">
+      <h2 className="mb-1 font-semibold text-slate-900">Informativa privacy</h2>
+      <p className="mb-3 text-sm text-slate-500">
+        Testo mostrato a tutti gli utenti al primo accesso, con richiesta di consenso. Versione
+        attuale: <b>{q.data?.versione ?? '—'}</b>.
+      </p>
+      {q.isLoading ? (
+        <Spinner className="h-5 w-5 text-brand-600" />
+      ) : (
+        <div className="space-y-3">
+          <textarea
+            className="input min-h-[220px] font-mono text-xs"
+            value={testo}
+            onChange={(e) => setTesto(e.target.value)}
+          />
+          <label className="flex items-start gap-2 text-sm text-slate-700">
+            <input
+              type="checkbox"
+              className="mt-1"
+              checked={nuovaVersione}
+              onChange={(e) => setNuovaVersione(e.target.checked)}
+            />
+            <span>
+              Pubblica come <b>nuova versione</b>: tutti gli utenti dovranno prestare di nuovo il
+              consenso al prossimo accesso. (Lascia deselezionato per correzioni minori.)
+            </span>
+          </label>
+          <button className="btn-primary" onClick={() => salva.mutate()} disabled={salva.isPending}>
+            {salva.isPending && <Spinner className="h-4 w-4" />} Salva informativa
+          </button>
+        </div>
+      )}
     </Card>
   )
 }

@@ -19,6 +19,7 @@ import { useAuth } from '@/context/AuthContext'
 import { Avatar } from '@/components/ui'
 import { GuidaButton } from '@/components/Guida'
 import { NotificheBell } from '@/components/NotificheBell'
+import { GateConsensoPrivacy } from '@/components/GateConsensoPrivacy'
 import { getLogoCsain } from '@/api/piattaforma'
 import { RUOLO_LABEL, nomeCompleto } from '@/lib/format'
 import type { RuoloUtente } from '@/lib/database.types'
@@ -66,6 +67,7 @@ export default function Layout() {
 
   return (
     <div className="min-h-screen md:flex">
+      <GateConsensoPrivacy />
       {/* Sidebar desktop */}
       <aside className="hidden w-60 shrink-0 flex-col border-r border-slate-200 bg-white md:flex">
         <div className="flex items-center gap-2 px-5 py-5">

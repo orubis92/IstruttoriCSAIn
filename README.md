@@ -61,6 +61,15 @@ Esegui `sql/08_piattaforma.sql` (dopo 00, 01): aggiunge le impostazioni di
 piattaforma con il logo CSAIN, gestito dai soli programmatori e mostrato a
 sinistra del logo ASD e in alto a destra sui diplomi. È ri-eseguibile.
 
+### Informativa privacy e consenso (obbligatorio per quella funzione)
+
+Esegui `sql/10_privacy.sql` (dopo 00, 01, 08): aggiunge il testo/versione
+dell'informativa privacy (gestita dai programmatori) e il registro dei consensi
+per utente. Al primo accesso — e a ogni nuova versione — l'app mostra
+l'informativa come schermata bloccante e chiede il consenso, che viene registrato
+con data e versione. Il testo iniziale è un modello da far validare a un
+riferimento privacy. È ri-eseguibile.
+
 ### Notifiche in-app (obbligatorio per quella funzione)
 
 Esegui `sql/09_notifiche.sql` (dopo 00, 01 e 05): aggiunge il conteggio dei
