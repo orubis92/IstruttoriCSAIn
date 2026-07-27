@@ -1,6 +1,8 @@
 import { supabase } from '@/lib/supabase'
 import type {
   Corso,
+  CorsoIstruttore,
+  EsitoCorso,
   Giornata,
   Iscrizione,
   ModelloCorso,
@@ -162,6 +164,60 @@ export async function giornateModello(modelloId: string): Promise<ModelloGiornat
   return (data as ModelloGiornata[]) ?? []
 }
 
+export interface GiornataModelloInput {
+  ordine: number
+  titolo: string
+  obiettivi?: string | null
+  argomenti?: string[]
+  durataMinuti?: number | null
+}
+
+/**
+ * Crea un modello di corso STANDARD (di piattaforma, asd_id NULL) con le sue
+ * giornate. Riservato ai programmatori (l'inserimento è consentito dalle policy
+ * solo se asd_id è NULL e l'utente è programmatore).
+ */
+export async function creaModelloCorsoStandard(input: {
+  titolo: string
+  descrizione?: string | null
+  livello?: string | null
+  creatoDa?: string | null
+  giornate: GiornataModelloInput[]
+}): Promise<string> {
+  const { data: modello, error } = await supabase
+    .from('modelli_corso')
+    .insert({
+      asd_id: null,
+      titolo: input.titolo,
+      descrizione: input.descrizione ?? null,
+      livello: input.livello ?? null,
+      creato_da: input.creatoDa ?? null,
+    })
+    .select('id')
+    .single()
+  if (error) throw error
+  const modelloId = (modello as { id: string }).id
+
+  if (input.giornate.length > 0) {
+    const righe = input.giornate.map((g) => ({
+      modello_corso_id: modelloId,
+      ordine: g.ordine,
+      titolo: g.titolo,
+      obiettivi: g.obiettivi ?? null,
+      argomenti: g.argomenti ?? [],
+      durata_minuti: g.durataMinuti ?? null,
+    }))
+    const { error: gErr } = await supabase.from('modelli_giornata').insert(righe)
+    if (gErr) throw gErr
+  }
+  return modelloId
+}
+
+export async function eliminaModelloCorso(id: string): Promise<void> {
+  const { error } = await supabase.from('modelli_corso').delete().eq('id', id)
+  if (error) throw error
+}
+
 // --- Iscrizioni ---
 
 export async function listaIscrizioni(corsoId: string): Promise<Iscrizione[]> {
@@ -171,6 +227,16 @@ export async function listaIscrizioni(corsoId: string): Promise<Iscrizione[]> {
     .eq('corso_id', corsoId)
   if (error) throw error
   return (data as Iscrizione[]) ?? []
+}
+
+/** Tutte le giornate visibili (per la vista calendario). */
+export async function listaGiornateTutte(): Promise<Giornata[]> {
+  const { data, error } = await supabase
+    .from('giornate')
+    .select('*')
+    .order('data', { ascending: true })
+  if (error) throw error
+  return (data as Giornata[]) ?? []
 }
 
 export async function mieIscrizioni(atletaId: string): Promise<Iscrizione[]> {
@@ -206,6 +272,19 @@ export async function aggiornaStatoIscrizione(id: string, stato: StatoIscrizione
   if (error) throw error
 }
 
+/** Valutazione finale dell'atleta (esito + note). Solo staff (per policy). */
+export async function valutaIscrizione(
+  id: string,
+  esito: EsitoCorso | null,
+  valutazione: string | null,
+): Promise<void> {
+  const { error } = await supabase
+    .from('iscrizioni')
+    .update({ esito, valutazione })
+    .eq('id', id)
+  if (error) throw error
+}
+
 export async function rimuoviIscrizione(id: string): Promise<void> {
   const { error } = await supabase.from('iscrizioni').delete().eq('id', id)
   if (error) throw error
@@ -236,4 +315,49 @@ export async function registraPresenza(
       { onConflict: 'giornata_id,atleta_id' },
     )
   if (error) throw error
+}
+
+// --- Istruttori del corso (per i diplomi) ---
+
+export async function listaIstruttoriCorso(corsoId: string): Promise<CorsoIstruttore[]> {
+  const { data, error } = await supabase
+    .from('corso_istruttori')
+    .select('*')
+    .eq('corso_id', corsoId)
+    .order('creato_il', { ascending: true })
+  if (error) throw error
+  return (data as CorsoIstruttore[]) ?? []
+}
+
+export async function aggiungiIstruttoreCorso(
+  corsoId: string,
+  asdId: string,
+  istruttoreId: string,
+): Promise<void> {
+  const { error } = await supabase
+    .from('corso_istruttori')
+    .insert({ corso_id: corsoId, asd_id: asdId, istruttore_id: istruttoreId })
+  if (error) throw error
+}
+
+export async function aggiornaFirmaIstruttore(id: string, firma: string | null): Promise<void> {
+  const { error } = await supabase.from('corso_istruttori').update({ firma }).eq('id', id)
+  if (error) throw error
+}
+
+export async function rimuoviIstruttoreCorso(id: string): Promise<void> {
+  const { error } = await supabase.from('corso_istruttori').delete().eq('id', id)
+  if (error) throw error
+}
+
+// --- Presenze di tutte le giornate di un corso (per i diplomi) ---
+
+export async function presenzeDelCorso(giornataIds: string[]): Promise<Presenza[]> {
+  if (giornataIds.length === 0) return []
+  const { data, error } = await supabase
+    .from('presenze')
+    .select('*')
+    .in('giornata_id', giornataIds)
+  if (error) throw error
+  return (data as Presenza[]) ?? []
 }

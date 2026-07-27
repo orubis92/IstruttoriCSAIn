@@ -39,4 +39,42 @@
   .card {
     @apply rounded-xl border border-slate-200 bg-white shadow-sm;
   }
+  /* Pulsante con sola icona (guida, impostazioni, ecc.) */
+  .icon-btn {
+    @apply flex h-9 w-9 items-center justify-center rounded-full text-slate-500
+           transition-colors hover:bg-slate-100 hover:text-brand-700;
+  }
+}
+
+/* ==========================================================================
+   Ottimizzazioni per dispositivi touch (tablet e smartphone).
+   Si applicano solo dove il puntatore principale è "grosso" (dito): ingrandiscono
+   le aree da toccare senza cambiare l'aspetto compatto su desktop col mouse.
+   ========================================================================== */
+@media (pointer: coarse) {
+  /* Ogni pulsante rispetta la dimensione minima consigliata per il tocco (~44px),
+     compresi i piccoli pulsanti icona nelle liste. */
+  .btn {
+    min-height: 2.75rem;
+    min-width: 2.75rem;
+  }
+  /* Campi e menu a tendina più alti e con testo da 16px:
+     più comodi da toccare e senza lo zoom automatico di iOS al focus. */
+  .input {
+    min-height: 2.75rem;
+    font-size: 16px;
+  }
+  .icon-btn {
+    height: 2.75rem;
+    width: 2.75rem;
+  }
+  /* Voci della barra di navigazione inferiore più comode. */
+  .tabbar-item {
+    min-height: 3.5rem;
+    justify-content: center;
+  }
+  /* Righe cliccabili (checkbox, opzioni) con un'area verticale più ampia. */
+  label:has(> input[type='checkbox']) {
+    min-height: 2.75rem;
+  }
 }

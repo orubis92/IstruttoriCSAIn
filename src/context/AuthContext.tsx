@@ -15,7 +15,7 @@ interface AuthState {
   session: Session | null
   profilo: Utente | null
   asd: Asd | null
-  /** true finché non abbiamo determinato sessione + profilo la prima volta */
+  /** true finché non abbiamo determinato sessione + profilo */
   loading: boolean
   ruolo: RuoloUtente | null
   isStaff: boolean
@@ -41,11 +41,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setAsd(null)
       return
     }
-    const { data: prof } = await supabase
+    const { data: prof, error } = await supabase
       .from('utenti')
       .select('*')
       .eq('auth_id', userId)
       .maybeSingle()
+
+    if (error) {
+      // Non nascondiamo l'errore: aiuta a diagnosticare problemi di chiave/policy.
+      // eslint-disable-next-line no-console
+      console.error('Errore nel caricamento del profilo:', error.message)
+    }
 
     setProfilo((prof as Utente) ?? null)
 
@@ -60,18 +66,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let attivo = true
 
-    supabase.auth.getSession().then(async ({ data }) => {
+    // Gestisce un cambio di identità: mette loading a true PRIMA di risolvere il
+    // profilo, così le rotte protette mostrano il caricamento invece di
+    // reindirizzare a "/benvenuto" mentre il profilo è ancora in arrivo.
+    const gestisci = async (s: Session | null) => {
       if (!attivo) return
-      setSession(data.session)
-      await caricaProfilo(data.session?.user.id)
+      setLoading(true)
+      setSession(s)
+      await caricaProfilo(s?.user.id)
       if (attivo) setLoading(false)
+    }
+
+    // Primo caricamento
+    supabase.auth.getSession().then(({ data }) => {
+      void gestisci(data.session)
     })
 
-    const { data: sub } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
-      if (!attivo) return
-      setSession(newSession)
-      await caricaProfilo(newSession?.user.id)
-      setLoading(false)
+    // Cambi successivi. Per il semplice refresh del token aggiorniamo solo la
+    // sessione, senza ricaricare il profilo né mostrare il loader (niente flicker).
+    const { data: sub } = supabase.auth.onAuthStateChange((event, newSession) => {
+      if (event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
+        setSession(newSession)
+        return
+      }
+      void gestisci(newSession)
     })
 
     return () => {
@@ -88,7 +106,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signUp = useCallback(async (email: string, password: string) => {
     const { data, error } = await supabase.auth.signUp({ email, password })
     if (error) throw error
-    // Se la conferma email è attiva, session è null finché l'utente non conferma.
     return { needsConfirm: !data.session }
   }, [])
 
@@ -99,8 +116,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const refreshProfilo = useCallback(async () => {
-    await caricaProfilo(session?.user.id)
-  }, [caricaProfilo, session])
+    const { data } = await supabase.auth.getSession()
+    await caricaProfilo(data.session?.user.id)
+  }, [caricaProfilo])
 
   const value = useMemo<AuthState>(() => {
     const ruolo = profilo?.ruolo ?? null

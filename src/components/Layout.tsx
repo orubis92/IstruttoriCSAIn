@@ -1,18 +1,24 @@
 import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard,
   GraduationCap,
+  CalendarDays,
   FileText,
   ClipboardList,
+  MessageCircle,
   Users,
+  Award,
   LogOut,
   Target,
+  Settings,
   ChevronDown,
 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { Avatar } from '@/components/ui'
 import { GuidaButton } from '@/components/Guida'
+import { getLogoCsain } from '@/api/piattaforma'
 import { RUOLO_LABEL, nomeCompleto } from '@/lib/format'
 import type { RuoloUtente } from '@/lib/database.types'
 
@@ -26,13 +32,21 @@ interface VoceNav {
 const NAV: VoceNav[] = [
   { to: '/', label: 'Cruscotto', icona: LayoutDashboard },
   { to: '/corsi', label: 'Corsi', icona: GraduationCap },
+  { to: '/calendario', label: 'Calendario', icona: CalendarDays },
   { to: '/documenti', label: 'Documenti', icona: FileText },
   { to: '/moduli', label: 'Modulistica', icona: ClipboardList },
+  { to: '/chat', label: 'Chat', icona: MessageCircle },
   {
     to: '/membri',
     label: 'Membri',
     icona: Users,
     soloRuoli: ['AMMINISTRATORE_ASD', 'ISTRUTTORE'],
+  },
+  {
+    to: '/standard',
+    label: 'Standard',
+    icona: Award,
+    soloRuoli: ['PROGRAMMATORE'],
   },
 ]
 
@@ -40,6 +54,7 @@ export default function Layout() {
   const { profilo, asd, ruolo, signOut } = useAuth()
   const navigate = useNavigate()
   const [menuAperto, setMenuAperto] = useState(false)
+  const { data: logoCsain } = useQuery({ queryKey: ['logo-csain'], queryFn: getLogoCsain })
 
   const voci = NAV.filter((v) => !v.soloRuoli || (ruolo && v.soloRuoli.includes(ruolo)))
 
@@ -53,9 +68,14 @@ export default function Layout() {
       {/* Sidebar desktop */}
       <aside className="hidden w-60 shrink-0 flex-col border-r border-slate-200 bg-white md:flex">
         <div className="flex items-center gap-2 px-5 py-5">
-          <Target className="h-7 w-7 text-brand-700" />
+          {logoCsain && <img src={logoCsain} alt="CSAIN" className="h-8 w-8 object-contain" />}
+          {asd?.logo ? (
+            <img src={asd.logo} alt="Logo" className="h-8 w-8 rounded object-contain" />
+          ) : (
+            <Target className="h-7 w-7 text-brand-700" />
+          )}
           <div className="leading-tight">
-            <p className="text-sm font-bold text-slate-900">IstruttoriCSAIn</p>
+            <p className="text-sm font-bold text-slate-900">{asd?.nome ?? 'IstruttoriCSAIn'}</p>
             <p className="text-xs text-slate-400">Gestione corsi ASD</p>
           </div>
         </div>
@@ -90,14 +110,22 @@ export default function Layout() {
         {/* Top bar */}
         <header className="sticky top-0 z-30 flex items-center justify-between border-b border-slate-200 bg-white/90 px-4 py-3 backdrop-blur md:px-6">
           <div className="flex items-center gap-2 md:hidden">
-            <Target className="h-6 w-6 text-brand-700" />
-            <span className="font-bold text-slate-900">IstruttoriCSAIn</span>
+            {logoCsain && <img src={logoCsain} alt="CSAIN" className="h-7 w-7 object-contain" />}
+            {asd?.logo ? (
+              <img src={asd.logo} alt="Logo" className="h-7 w-7 rounded object-contain" />
+            ) : (
+              <Target className="h-6 w-6 text-brand-700" />
+            )}
+            <span className="truncate font-bold text-slate-900">{asd?.nome ?? 'IstruttoriCSAIn'}</span>
           </div>
           <div className="hidden md:block">
             <p className="text-sm text-slate-400">{asd?.nome ?? 'Area piattaforma'}</p>
           </div>
 
           <div className="flex items-center gap-1">
+          <Link to="/impostazioni" className="icon-btn" aria-label="Impostazioni" title="Impostazioni">
+            <Settings className="h-5 w-5" />
+          </Link>
           <GuidaButton />
           <div className="relative">
             <button
@@ -145,14 +173,14 @@ export default function Layout() {
         </main>
 
         {/* Bottom nav mobile */}
-        <nav className="fixed inset-x-0 bottom-0 z-30 flex border-t border-slate-200 bg-white md:hidden">
+        <nav className="fixed inset-x-0 bottom-0 z-30 flex overflow-x-auto border-t border-slate-200 bg-white md:hidden">
           {voci.map((v) => (
             <NavLink
               key={v.to}
               to={v.to}
               end={v.to === '/'}
               className={({ isActive }) =>
-                `flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] ${
+                `tabbar-item flex min-w-[3.9rem] flex-1 flex-col items-center gap-0.5 py-2 text-[11px] ${
                   isActive ? 'text-brand-700' : 'text-slate-400'
                 }`
               }

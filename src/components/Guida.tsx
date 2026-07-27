@@ -90,8 +90,9 @@ const SEZIONI: Sezione[] = [
       <>
         <p>
           Da <b>Corsi → Nuovo corso</b> puoi partire in due modi: <b>Guidata</b>, scegliendo una
-          linea guida che genera automaticamente le giornate a intervalli regolari; oppure
-          <b> Manuale</b>, creando il corso da zero e aggiungendo le giornate a mano.
+          linea guida e assegnando a ciascuna giornata la sua data sul calendario (c'è anche un
+          riempimento settimanale automatico come punto di partenza); oppure <b>Manuale</b>, creando
+          il corso da zero e aggiungendo le giornate a mano.
         </p>
         <p>
           Nella scheda del corso cambi lo <b>stato</b> (metti «Aperto alle iscrizioni» per far
@@ -112,6 +113,60 @@ const SEZIONI: Sezione[] = [
           corso aperto puoi premere <b>«Candidati»</b>: lo staff confermerà la tua iscrizione.
         </p>
         <p>Nella scheda del corso trovi le giornate con obiettivi e argomenti.</p>
+      </>
+    ),
+  },
+  {
+    id: 'calendario',
+    titolo: 'Calendario',
+    contenuto: (
+      <>
+        <p>
+          In <b>Calendario</b> vedi tutte le giornate dei corsi su un calendario mensile. Usa le
+          frecce per cambiare mese; clicca un giorno per vederne il dettaglio, o una giornata per
+          aprire direttamente il corso. Ogni corso ha un colore, riportato nella legenda in fondo.
+        </p>
+        <p>
+          Le date delle giornate si impostano alla creazione guidata del corso — una data per ogni
+          giornata — oppure aggiungendo/modificando le giornate dalla scheda del corso.
+        </p>
+      </>
+    ),
+  },
+  {
+    id: 'proponi-standard',
+    titolo: 'Proporre un corso come standard',
+    ruoli: ['AMMINISTRATORE_ASD', 'ISTRUTTORE'],
+    contenuto: (
+      <>
+        <p>
+          Se hai costruito un buon corso, puoi proporlo come <b>corso standard</b> per tutte le ASD.
+          Apri la scheda del corso e premi <b>«Proponi»</b> nel riquadro dedicato: verrà inviata una
+          copia (titolo, descrizione e giornate) in revisione ai programmatori.
+        </p>
+        <p>
+          Vedrai lo stato della proposta: in revisione, accettata o rifiutata (con la motivazione).
+          Finché è in revisione puoi ritirarla.
+        </p>
+      </>
+    ),
+  },
+  {
+    id: 'standard-prog',
+    titolo: 'Corsi standard e revisione',
+    ruoli: ['PROGRAMMATORE'],
+    contenuto: (
+      <>
+        <p>
+          Nella sezione <b>Standard</b> gestisci le linee guida di piattaforma. Nella scheda
+          <b> «Proposte in revisione»</b> trovi i corsi proposti dalle ASD: puoi <b>accettarli</b> —
+          diventano subito una linea guida disponibile a tutte le ASD in modalità guidata — oppure
+          <b> rifiutarli</b> indicando una motivazione.
+        </p>
+        <p>
+          Nella scheda <b>«Corsi standard»</b> puoi anche crearne di nuovi da zero, con le relative
+          giornate, ed eliminarli.
+        </p>
       </>
     ),
   },
@@ -157,6 +212,99 @@ const SEZIONI: Sezione[] = [
     ),
   },
   {
+    id: 'commenti-storico',
+    titolo: 'Commenti e storico dei corsi',
+    contenuto: (
+      <>
+        <p>
+          In ogni corso, la scheda <b>«Commenti»</b> permette allo staff e agli atleti iscritti di
+          annotare com'è andata e i problemi ricorrenti, sul corso in generale o su una singola
+          giornata. Serve a tenere memoria e a migliorare i corsi successivi.
+        </p>
+        <p>
+          In <b>Corsi</b> il selettore <b>«Attivi / Storico»</b> mostra i corsi conclusi o annullati.
+          Le valutazioni degli atleti si trovano nella scheda «Iscritti» del corso (pulsante
+          «Valuta»).
+        </p>
+      </>
+    ),
+  },
+  {
+    id: 'diplomi',
+    titolo: 'Diplomi',
+    ruoli: ['AMMINISTRATORE_ASD', 'ISTRUTTORE'],
+    contenuto: (
+      <>
+        <p>
+          Nella scheda <b>«Diplomi»</b> del corso associ gli istruttori che vi hanno partecipato e ne
+          raccogli la <b>firma</b> (si disegna col dito o col mouse). Poi <b>«Apri diplomi»</b> genera
+          un diploma per ogni atleta partecipante, già compilato con nome, lezioni frequentate,
+          argomenti trattati e le firme, pronto da <b>stampare</b> (o salvare in PDF dalla stampa).
+        </p>
+      </>
+    ),
+  },
+  {
+    id: 'chat',
+    titolo: 'Chat',
+    contenuto: (
+      <>
+        <p>
+          In <b>Chat</b> puoi scrivere agli altri membri della tua ASD e ai programmatori. Usa
+          <b> «Nuova chat»</b> per una conversazione singola o <b>«Nuovo gruppo»</b> per crearne una
+          con più persone. Le conversazioni sono private: solo i partecipanti le vedono.
+        </p>
+      </>
+    ),
+  },
+  {
+    id: 'certificati',
+    titolo: 'Certificato medico',
+    ruoli: ['AMMINISTRATORE_ASD', 'ISTRUTTORE'],
+    contenuto: (
+      <>
+        <p>
+          In <b>Membri</b>, sull'atleta, il pulsante <b>«Certificato»</b> permette di registrare i
+          dati del certificato medico (tipo, date di rilascio e scadenza, ente, medico, note). Il
+          sistema segnala i certificati scaduti o in scadenza.
+        </p>
+        <p>L'atleta vede il proprio certificato nella pagina del profilo.</p>
+      </>
+    ),
+  },
+  {
+    id: 'impostazioni',
+    titolo: 'Impostazioni e logo',
+    ruoli: ['AMMINISTRATORE_ASD'],
+    contenuto: (
+      <>
+        <p>
+          Dall'icona a forma di ingranaggio in alto a destra apri le <b>Impostazioni</b>: qui
+          l'amministratore modifica i dati della ASD (nome, contatti, codice CSAIN) e carica il
+          <b> logo</b>.
+        </p>
+        <p>
+          Il logo compare in alto a sinistra nell'app e sui <b>diplomi</b> stampati. Consigliata
+          un'immagine quadrata; viene ridimensionata in automatico.
+        </p>
+      </>
+    ),
+  },
+  {
+    id: 'logo-csain',
+    titolo: 'Logo CSAIN',
+    ruoli: ['PROGRAMMATORE'],
+    contenuto: (
+      <>
+        <p>
+          Dalle <b>Impostazioni</b> (ingranaggio in alto a destra) puoi caricare il <b>logo CSAIN</b>
+          valido per tutte le ASD. Compare a sinistra del logo di ogni ASD nell'app e in alto a destra
+          sui diplomi stampati. Solo i programmatori possono modificarlo.
+        </p>
+      </>
+    ),
+  },
+  {
     id: 'privacy',
     titolo: 'Privacy e dati',
     contenuto: (
@@ -179,12 +327,8 @@ export function GuidaButton() {
   const [aperto, setAperto] = useState(false)
   return (
     <>
-      <button
-        onClick={() => setAperto(true)}
-        className="flex h-9 w-9 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 hover:text-brand-700"
-        aria-label="Guida"
-        title="Guida"
-      >
+      <button onClick={() => setAperto(true)} className="icon-btn" aria-label="Guida" title="Guida">
+
         <LifeBuoy className="h-5 w-5" />
       </button>
       <Guida aperto={aperto} onClose={() => setAperto(false)} />

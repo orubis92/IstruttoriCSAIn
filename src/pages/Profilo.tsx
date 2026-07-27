@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/components/Toast'
 import { aggiornaUtente, staffAsd } from '@/api/utenti'
+import { mieiCertificati } from '@/api/certificati'
 import { messaggioErrore } from '@/api/errors'
 import { Card, PageHeader, Field, Spinner, Badge } from '@/components/ui'
 import { RUOLO_LABEL, formatData, nomeCompleto } from '@/lib/format'
@@ -19,6 +20,20 @@ export default function Profilo() {
     queryFn: staffAsd,
     enabled: ruolo === 'ATLETA',
   })
+
+  const certificati = useQuery({
+    queryKey: ['miei-certificati'],
+    queryFn: mieiCertificati,
+    enabled: ruolo === 'ATLETA',
+  })
+
+  function badgeScadenza(data: string | null) {
+    if (!data) return null
+    const giorni = Math.round((new Date(data).getTime() - Date.now()) / 86400000)
+    if (giorni < 0) return <Badge tono="rosso">Scaduto</Badge>
+    if (giorni <= 30) return <Badge tono="giallo">In scadenza</Badge>
+    return <Badge tono="verde">Valido</Badge>
+  }
 
   if (!profilo) return null
 
@@ -70,6 +85,38 @@ export default function Profilo() {
             </button>
           </form>
         </Card>
+
+        {ruolo === 'ATLETA' && (
+          <Card className="p-5 lg:col-span-2">
+            <h2 className="mb-4 font-semibold text-slate-900">Il mio certificato medico</h2>
+            {certificati.isLoading ? (
+              <Spinner className="h-5 w-5 text-brand-600" />
+            ) : (certificati.data ?? []).length === 0 ? (
+              <p className="text-sm text-slate-400">
+                Nessun certificato registrato. Sarà lo staff della ASD a inserirne i dati.
+              </p>
+            ) : (
+              <ul className="space-y-2">
+                {(certificati.data ?? []).map((c) => (
+                  <li
+                    key={c.id}
+                    className="flex items-center justify-between gap-2 rounded-lg border border-slate-100 px-3 py-2"
+                  >
+                    <div className="text-sm">
+                      <span className="font-medium text-slate-800">
+                        {c.tipo === 'AGONISTICO' ? 'Agonistico' : c.tipo === 'NON_AGONISTICO' ? 'Non agonistico' : 'Certificato'}
+                      </span>
+                      <span className="ml-2 text-xs text-slate-400">
+                        scadenza {formatData(c.data_scadenza)}
+                      </span>
+                    </div>
+                    {badgeScadenza(c.data_scadenza)}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
+        )}
 
         {ruolo === 'ATLETA' && (
           <Card className="p-5 lg:col-span-2">

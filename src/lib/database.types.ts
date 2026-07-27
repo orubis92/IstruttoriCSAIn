@@ -33,6 +33,7 @@ export interface Asd {
   email: string | null
   telefono: string | null
   indirizzo: string | null
+  logo: string | null
   attiva: boolean
   creata_il: string
   aggiornata_il: string
@@ -144,6 +145,8 @@ export interface Giornata {
   aggiornato_il: string
 }
 
+export type EsitoCorso = 'SUPERATO' | 'NON_SUPERATO'
+
 export interface Iscrizione {
   id: string
   corso_id: string
@@ -152,7 +155,28 @@ export interface Iscrizione {
   stato: StatoIscrizione
   iscritto_il: string
   note: string | null
+  esito: EsitoCorso | null
+  valutazione: string | null
   aggiornato_il: string
+}
+
+export interface Commento {
+  id: string
+  asd_id: string
+  corso_id: string
+  giornata_id: string | null
+  autore_id: string | null
+  testo: string
+  creato_il: string
+}
+
+export interface CorsoIstruttore {
+  id: string
+  corso_id: string
+  asd_id: string
+  istruttore_id: string
+  firma: string | null
+  creato_il: string
 }
 
 export interface Presenza {
@@ -209,4 +233,84 @@ export interface StaffAsd {
   nome: string
   cognome: string
   ruolo: RuoloUtente
+}
+
+export type TipoCertificato = 'AGONISTICO' | 'NON_AGONISTICO'
+
+export interface CertificatoMedico {
+  id: string
+  atleta_id: string
+  asd_id: string
+  tipo: TipoCertificato | null
+  data_rilascio: string | null
+  data_scadenza: string | null
+  ente_rilascio: string | null
+  medico: string | null
+  note: string | null
+  documento_id: string | null
+  creato_da: string | null
+  creato_il: string
+  aggiornato_il: string
+}
+
+export type TipoConversazione = 'DIRETTA' | 'GRUPPO'
+
+export interface Conversazione {
+  id: string
+  tipo: TipoConversazione
+  nome: string | null
+  asd_id: string | null
+  creato_da: string | null
+  creato_il: string
+  ultimo_messaggio_il: string
+}
+
+export interface ConversazioneMembro {
+  conversazione_id: string
+  utente_id: string
+  aggiunto_il: string
+}
+
+export interface Messaggio {
+  id: string
+  conversazione_id: string
+  mittente_id: string | null
+  testo: string
+  creato_il: string
+}
+
+export interface Contatto {
+  id: string
+  nome: string
+  cognome: string
+  ruolo: RuoloUtente
+  asd_id: string | null
+}
+
+export type StatoProposta = 'IN_REVISIONE' | 'ACCETTATA' | 'RIFIUTATA'
+
+/** Giornata dentro lo snapshot di una proposta o di un modello. */
+export interface GiornataSnapshot {
+  ordine: number
+  titolo: string
+  obiettivi?: string | null
+  argomenti: string[]
+  durata_minuti?: number | null
+}
+
+export interface PropostaCorso {
+  id: string
+  asd_id: string
+  corso_id: string | null
+  titolo: string
+  descrizione: string | null
+  livello: string | null
+  giornate: GiornataSnapshot[]
+  stato: StatoProposta
+  note_revisione: string | null
+  modello_id: string | null
+  proposto_da: string | null
+  proposto_il: string
+  revisionato_da: string | null
+  revisionato_il: string | null
 }

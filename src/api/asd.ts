@@ -32,3 +32,15 @@ export async function aggiornaAsd(id: string, patch: Partial<Asd>): Promise<void
   const { error } = await supabase.from('asd').update(patch).eq('id', id)
   if (error) throw error
 }
+
+/** Mappa id → nome delle ASD visibili (per i programmatori, tutte). */
+export async function getAsdMappa(): Promise<Record<string, string>> {
+  const { data, error } = await supabase.from('asd').select('id, nome')
+  if (error) throw error
+  const mappa: Record<string, string> = {}
+  ;(data ?? []).forEach((a) => {
+    const r = a as { id: string; nome: string }
+    mappa[r.id] = r.nome
+  })
+  return mappa
+}

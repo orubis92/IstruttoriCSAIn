@@ -31,6 +31,36 @@ VITE_SUPABASE_ANON_KEY=eyJhbGciOi...
 Usa **solo** la chiave `anon` (pubblica). La chiave `service_role` non va mai
 messa nel frontend: scavalca tutte le policy di sicurezza del database.
 
+### Corsi standard e revisione (obbligatorio per quella funzione)
+
+Esegui `sql/04_proposte.sql` (dopo 00, 01, 02): aggiunge la tabella e le funzioni
+per proporre i corsi delle ASD come corsi standard e per la loro revisione da
+parte dei programmatori. È ri-eseguibile senza problemi.
+
+### Certificati medici e chat (obbligatorio per quelle funzioni)
+
+Esegui `sql/05_chat_certificati.sql` (dopo 00, 01, 02): aggiunge i certificati
+medici strutturati per atleta e la chat interna (conversazioni dirette e di
+gruppo, con permessi per appartenenza). Le note per singola giornata usano una
+colonna già presente e non richiedono migrazioni. È ri-eseguibile.
+
+### Storico, commenti e diplomi (obbligatorio per quelle funzioni)
+
+Esegui `sql/06_storico.sql` (dopo 00, 01, 02): aggiunge le valutazioni sulle
+iscrizioni, i commenti su corso/giornata e gli istruttori del corso con firma
+(per i diplomi). È ri-eseguibile.
+
+### Impostazioni e logo (obbligatorio per quella funzione)
+
+Esegui `sql/07_impostazioni.sql` (dopo 00): aggiunge il campo logo alla ASD,
+usato nella barra dell'app e sui diplomi. È ri-eseguibile.
+
+### Logo CSAIN di piattaforma (obbligatorio per quella funzione)
+
+Esegui `sql/08_piattaforma.sql` (dopo 00, 01): aggiunge le impostazioni di
+piattaforma con il logo CSAIN, gestito dai soli programmatori e mostrato a
+sinistra del logo ASD e in alto a destra sui diplomi. È ri-eseguibile.
+
 ### Dati di base (opzionale ma consigliato)
 
 Dopo aver applicato i file `sql/00`, `01`, `02`, esegui anche `sql/03_seed.sql`

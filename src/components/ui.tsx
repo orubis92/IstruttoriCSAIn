@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { Loader2, X } from 'lucide-react'
 
 export function Spinner({ className = '' }: { className?: string }) {
@@ -140,7 +141,10 @@ export function Modal({
   larghezza?: string
 }) {
   if (!aperto) return null
-  return (
+  // Reso tramite portale sul body: così la finestra è sempre relativa alla
+  // viewport e non a un eventuale contenitore con transform/backdrop-filter
+  // (es. la barra in alto), che la spingerebbe fuori dallo schermo.
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/40 p-0 sm:items-center sm:p-4"
       onClick={onClose}
@@ -157,6 +161,7 @@ export function Modal({
         </div>
         <div className="p-5">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

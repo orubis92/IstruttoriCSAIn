@@ -11,6 +11,11 @@ import {
   aggiornaDatiAnagrafici,
 } from '@/api/utenti'
 import { creaInvito } from '@/api/inviti'
+import {
+  certificatiAtleta,
+  creaCertificato,
+  eliminaCertificato,
+} from '@/api/certificati'
 import { messaggioErrore } from '@/api/errors'
 import {
   Card,
@@ -23,7 +28,7 @@ import {
   Avatar,
 } from '@/components/ui'
 import { RUOLO_LABEL, formatData, nomeCompleto } from '@/lib/format'
-import type { RuoloUtente, Utente } from '@/lib/database.types'
+import type { RuoloUtente, TipoCertificato, Utente } from '@/lib/database.types'
 
 export default function Membri() {
   const { asd, isStaff, isAdmin, profilo } = useAuth()
@@ -35,6 +40,7 @@ export default function Membri() {
   const [nuovoAperto, setNuovoAperto] = useState(false)
   const [invitoCodice, setInvitoCodice] = useState<string | null>(null)
   const [modifica, setModifica] = useState<Utente | null>(null)
+  const [certificatoDi, setCertificatoDi] = useState<Utente | null>(null)
 
   const membri = useQuery({ queryKey: ['membri'], queryFn: listaMembri })
 
@@ -132,6 +138,11 @@ export default function Membri() {
                 <button className="btn-ghost px-2 py-1 text-xs" onClick={() => setModifica(m)}>
                   Dati
                 </button>
+                {m.ruolo === 'ATLETA' && (
+                  <button className="btn-ghost px-2 py-1 text-xs" onClick={() => setCertificatoDi(m)}>
+                    Certificato
+                  </button>
+                )}
                 {!m.auth_id && (
                   <button
                     className="btn-ghost px-2 py-1 text-xs"
@@ -177,6 +188,15 @@ export default function Membri() {
             setModifica(null)
             invalida()
           }}
+        />
+      )}
+
+      {certificatoDi && asd && (
+        <FormCertificato
+          atleta={certificatoDi}
+          asdId={asd.id}
+          creatoDa={profilo?.id ?? null}
+          onClose={() => setCertificatoDi(null)}
         />
       )}
 
@@ -373,5 +393,159 @@ function CodiceCopiabile({ codice }: { codice: string }) {
         {copiato ? 'Copiato' : 'Copia'}
       </button>
     </div>
+  )
+}
+
+function FormCertificato({
+  atleta,
+  asdId,
+  creatoDa,
+  onClose,
+}: {
+  atleta: Utente
+  asdId: string
+  creatoDa: string | null
+  onClose: () => void
+}) {
+  const toast = useToast()
+  const qc = useQueryClient()
+  const q = useQuery({
+    queryKey: ['certificati', atleta.id],
+    queryFn: () => certificatiAtleta(atleta.id),
+  })
+
+  const [tipo, setTipo] = useState<TipoCertificato>('NON_AGONISTICO')
+  const [rilascio, setRilascio] = useState('')
+  const [scadenza, setScadenza] = useState('')
+  const [ente, setEnte] = useState('')
+  const [medico, setMedico] = useState('')
+  const [note, setNote] = useState('')
+
+  const invalida = () => qc.invalidateQueries({ queryKey: ['certificati', atleta.id] })
+
+  const crea = useMutation({
+    mutationFn: () =>
+      creaCertificato({
+        atletaId: atleta.id,
+        asdId,
+        tipo,
+        dataRilascio: rilascio || null,
+        dataScadenza: scadenza || null,
+        enteRilascio: ente || null,
+        medico: medico || null,
+        note: note || null,
+        creatoDa,
+      }),
+    onSuccess: () => {
+      invalida()
+      toast.successo('Certificato salvato.')
+      setRilascio('')
+      setScadenza('')
+      setEnte('')
+      setMedico('')
+      setNote('')
+    },
+    onError: (e) => toast.errore(messaggioErrore(e)),
+  })
+
+  const del = useMutation({
+    mutationFn: (id: string) => eliminaCertificato(id),
+    onSuccess: invalida,
+    onError: (e) => toast.errore(messaggioErrore(e)),
+  })
+
+  function badgeScadenza(data: string | null) {
+    if (!data) return null
+    const oggi = new Date()
+    const d = new Date(data)
+    const giorni = Math.round((d.getTime() - oggi.getTime()) / 86400000)
+    if (giorni < 0) return <Badge tono="rosso">Scaduto</Badge>
+    if (giorni <= 30) return <Badge tono="giallo">In scadenza</Badge>
+    return <Badge tono="verde">Valido</Badge>
+  }
+
+  return (
+    <Modal titolo={`Certificato medico — ${nomeCompleto(atleta)}`} aperto onClose={onClose} larghezza="max-w-xl">
+      <div className="space-y-5">
+        <div>
+          <p className="mb-2 text-sm font-medium text-slate-700">Certificati registrati</p>
+          {q.isLoading ? (
+            <Spinner className="h-5 w-5 text-brand-600" />
+          ) : (q.data ?? []).length === 0 ? (
+            <p className="text-sm text-slate-400">Nessun certificato ancora registrato.</p>
+          ) : (
+            <ul className="space-y-2">
+              {(q.data ?? []).map((c) => (
+                <li key={c.id} className="flex items-start justify-between gap-2 rounded-lg border border-slate-200 p-3">
+                  <div className="text-sm">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-slate-800">
+                        {c.tipo === 'AGONISTICO' ? 'Agonistico' : c.tipo === 'NON_AGONISTICO' ? 'Non agonistico' : '—'}
+                      </span>
+                      {badgeScadenza(c.data_scadenza)}
+                    </div>
+                    <p className="text-xs text-slate-500">
+                      Rilascio: {formatData(c.data_rilascio)} · Scadenza: {formatData(c.data_scadenza)}
+                    </p>
+                    {(c.ente_rilascio || c.medico) && (
+                      <p className="text-xs text-slate-400">
+                        {c.ente_rilascio ?? ''} {c.medico ? `· ${c.medico}` : ''}
+                      </p>
+                    )}
+                    {c.note && <p className="mt-1 text-xs text-slate-500">{c.note}</p>}
+                  </div>
+                  <button
+                    className="btn-ghost px-2 py-1 text-xs text-red-600"
+                    onClick={() => {
+                      if (confirm('Eliminare questo certificato?')) del.mutate(c.id)
+                    }}
+                  >
+                    Elimina
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        <form
+          onSubmit={(e) => {
+            e.preventDefault()
+            crea.mutate()
+          }}
+          className="space-y-3 border-t border-slate-100 pt-4"
+        >
+          <p className="text-sm font-medium text-slate-700">Aggiungi un certificato</p>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Tipo">
+              <select className="input" value={tipo} onChange={(e) => setTipo(e.target.value as TipoCertificato)}>
+                <option value="NON_AGONISTICO">Non agonistico</option>
+                <option value="AGONISTICO">Agonistico</option>
+              </select>
+            </Field>
+            <Field label="Ente/struttura">
+              <input className="input" value={ente} onChange={(e) => setEnte(e.target.value)} />
+            </Field>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Data rilascio">
+              <input className="input" type="date" value={rilascio} onChange={(e) => setRilascio(e.target.value)} />
+            </Field>
+            <Field label="Data scadenza">
+              <input className="input" type="date" value={scadenza} onChange={(e) => setScadenza(e.target.value)} />
+            </Field>
+          </div>
+          <Field label="Medico">
+            <input className="input" value={medico} onChange={(e) => setMedico(e.target.value)} />
+          </Field>
+          <Field label="Note">
+            <textarea className="input min-h-[60px]" value={note} onChange={(e) => setNote(e.target.value)} />
+          </Field>
+          <button type="submit" className="btn-primary" disabled={crea.isPending}>
+            {crea.isPending && <Spinner className="h-4 w-4" />} Salva certificato
+          </button>
+        </form>
+      </div>
+    </Modal>
   )
 }
