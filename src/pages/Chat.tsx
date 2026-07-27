@@ -11,6 +11,8 @@ import {
   listaContatti,
   creaDiretta,
   creaGruppo,
+  messaggiNonLetti,
+  segnaLetto,
 } from '@/api/chat'
 import { messaggioErrore } from '@/api/errors'
 import { Card, PageHeader, Modal, Field, Spinner, EmptyState, Avatar } from '@/components/ui'
@@ -31,6 +33,17 @@ export default function Chat() {
   })
   const membri = useQuery({ queryKey: ['conv-membri'], queryFn: tuttiIMembri })
   const contatti = useQuery({ queryKey: ['contatti'], queryFn: listaContatti })
+  const nonLetti = useQuery({
+    queryKey: ['non-letti'],
+    queryFn: messaggiNonLetti,
+    refetchInterval: 20_000,
+  })
+
+  const nonLettiMap = useMemo(() => {
+    const m = new Map<string, number>()
+    ;(nonLetti.data ?? []).forEach((r) => m.set(r.conversazione_id, Number(r.non_letti)))
+    return m
+  }, [nonLetti.data])
 
   const contattoMap = useMemo(() => {
     const m = new Map<string, Contatto>()
@@ -115,6 +128,11 @@ export default function Chat() {
                           {c.tipo === 'GRUPPO' ? 'Gruppo' : 'Chat diretta'}
                         </span>
                       </span>
+                      {(nonLettiMap.get(c.id) ?? 0) > 0 && (
+                        <span className="ml-auto flex h-5 min-w-[1.25rem] shrink-0 items-center justify-center rounded-full bg-red-500 px-1 text-[11px] font-bold text-white">
+                          {nonLettiMap.get(c.id)}
+                        </span>
+                      )}
                     </button>
                   </li>
                 )
@@ -203,6 +221,14 @@ function Conversazione({
   useEffect(() => {
     fondo.current?.scrollIntoView({ behavior: 'smooth' })
   }, [msgs.data])
+
+  // Aprendo (o ricevendo messaggi mentre è aperta) segna la conversazione come letta.
+  useEffect(() => {
+    if (!profilo) return
+    segnaLetto(conversazioneId, profilo.id)
+      .then(() => qc.invalidateQueries({ queryKey: ['non-letti'] }))
+      .catch(() => {})
+  }, [conversazioneId, msgs.data, profilo, qc])
 
   const invia = useMutation({
     mutationFn: () => inviaMessaggio(conversazioneId, profilo!.id, testo.trim()),

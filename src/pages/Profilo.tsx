@@ -1,11 +1,12 @@
-import { useState, type FormEvent } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useEffect, useState, type FormEvent } from 'react'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/components/Toast'
 import { aggiornaUtente, staffAsd } from '@/api/utenti'
 import { mieiCertificati } from '@/api/certificati'
+import { getPreferenze, salvaPreferenze } from '@/api/notifiche'
 import { messaggioErrore } from '@/api/errors'
-import { Card, PageHeader, Field, Spinner, Badge } from '@/components/ui'
+import { Card, PageHeader, Field, Spinner, Badge, Alert } from '@/components/ui'
 import { RUOLO_LABEL, formatData, nomeCompleto } from '@/lib/format'
 
 export default function Profilo() {
@@ -70,6 +71,8 @@ export default function Profilo() {
             Codice fiscale e tessera possono essere modificati solo dallo staff della ASD.
           </p>
         </Card>
+
+        {profilo && <CardNotifiche utenteId={profilo.id} />}
 
         <Card className="p-5">
           <h2 className="mb-4 font-semibold text-slate-900">Recapiti</h2>
@@ -151,5 +154,108 @@ function Riga({ etichetta, valore }: { etichetta: string; valore: string }) {
       <dt className="text-slate-500">{etichetta}</dt>
       <dd className="text-right font-medium text-slate-800">{valore}</dd>
     </div>
+  )
+}
+
+function CardNotifiche({ utenteId }: { utenteId: string }) {
+  const toast = useToast()
+  const q = useQuery({ queryKey: ['preferenze', utenteId], queryFn: () => getPreferenze(utenteId) })
+
+  const [giornoPrima, setGiornoPrima] = useState(true)
+  const [mattina, setMattina] = useState(false)
+  const [orePrima, setOrePrima] = useState('')
+  const [viaEmail, setViaEmail] = useState(false)
+  const [viaPush, setViaPush] = useState(false)
+
+  useEffect(() => {
+    if (q.data) {
+      setGiornoPrima(q.data.giorno_prima)
+      setMattina(q.data.mattina)
+      setOrePrima(q.data.ore_prima != null ? String(q.data.ore_prima) : '')
+      setViaEmail(q.data.via_email)
+      setViaPush(q.data.via_push)
+    }
+  }, [q.data])
+
+  const mut = useMutation({
+    mutationFn: () =>
+      salvaPreferenze(utenteId, {
+        giorno_prima: giornoPrima,
+        mattina,
+        ore_prima: orePrima ? Number(orePrima) : null,
+        via_email: viaEmail,
+        via_push: viaPush,
+      }),
+    onSuccess: () => {
+      q.refetch()
+      toast.successo('Preferenze salvate.')
+    },
+    onError: (e) => toast.errore(messaggioErrore(e)),
+  })
+
+  return (
+    <Card className="p-5 lg:col-span-2">
+      <h2 className="mb-1 font-semibold text-slate-900">Notifiche</h2>
+      <p className="mb-4 text-sm text-slate-500">
+        Scegli quando ricevere i promemoria delle lezioni e su quali canali.
+      </p>
+      {q.isLoading ? (
+        <Spinner className="h-5 w-5 text-brand-600" />
+      ) : (
+        <div className="space-y-5">
+          <div>
+            <p className="label">Promemoria delle lezioni</p>
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-sm text-slate-700">
+                <input type="checkbox" checked={giornoPrima} onChange={(e) => setGiornoPrima(e.target.checked)} />
+                Il giorno prima
+              </label>
+              <label className="flex items-center gap-2 text-sm text-slate-700">
+                <input type="checkbox" checked={mattina} onChange={(e) => setMattina(e.target.checked)} />
+                La mattina della lezione
+              </label>
+              <div className="flex items-center gap-2 text-sm text-slate-700">
+                <span>Qualche ora prima:</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={48}
+                  className="input w-20 py-1"
+                  value={orePrima}
+                  onChange={(e) => setOrePrima(e.target.value)}
+                  placeholder="ore"
+                />
+                <span className="text-slate-400">(vuoto = disattivato)</span>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <p className="label">Canali</p>
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-sm text-slate-700">
+                <input type="checkbox" checked={viaEmail} onChange={(e) => setViaEmail(e.target.checked)} />
+                Email
+              </label>
+              <label className="flex items-center gap-2 text-sm text-slate-700">
+                <input type="checkbox" checked={viaPush} onChange={(e) => setViaPush(e.target.checked)} />
+                Notifiche push sul dispositivo
+              </label>
+            </div>
+            <div className="mt-3">
+              <Alert tono="blu">
+                Le notifiche <b>dentro l'app</b> (campanella) sono già attive. Email e push verranno
+                abilitate quando configureremo i rispettivi servizi: la tua scelta qui viene comunque
+                salvata.
+              </Alert>
+            </div>
+          </div>
+
+          <button className="btn-primary" onClick={() => mut.mutate()} disabled={mut.isPending}>
+            {mut.isPending && <Spinner className="h-4 w-4" />} Salva preferenze
+          </button>
+        </div>
+      )}
+    </Card>
   )
 }

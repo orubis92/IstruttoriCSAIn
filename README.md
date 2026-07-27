@@ -61,6 +61,14 @@ Esegui `sql/08_piattaforma.sql` (dopo 00, 01): aggiunge le impostazioni di
 piattaforma con il logo CSAIN, gestito dai soli programmatori e mostrato a
 sinistra del logo ASD e in alto a destra sui diplomi. È ri-eseguibile.
 
+### Notifiche in-app (obbligatorio per quella funzione)
+
+Esegui `sql/09_notifiche.sql` (dopo 00, 01 e 05): aggiunge il conteggio dei
+messaggi non letti e le preferenze di notifica per utente (canali e anticipo dei
+promemoria). La campanella in alto a destra mostra messaggi non letti e prossime
+lezioni. Le notifiche push/email verranno aggiunte in una fase successiva
+(richiedono chiavi VAPID / un servizio email e funzioni schedulate). È ri-eseguibile.
+
 ### Dati di base (opzionale ma consigliato)
 
 Dopo aver applicato i file `sql/00`, `01`, `02`, esegui anche `sql/03_seed.sql`

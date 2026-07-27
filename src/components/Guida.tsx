@@ -305,6 +305,24 @@ const SEZIONI: Sezione[] = [
     ),
   },
   {
+    id: 'notifiche',
+    titolo: 'Notifiche',
+    contenuto: (
+      <>
+        <p>
+          La <b>campanella</b> in alto a destra mostra i <b>messaggi non letti</b> della chat e le
+          <b> prossime lezioni</b> dei tuoi corsi. Il numero rosso indica i messaggi da leggere; una
+          conversazione si segna come letta quando la apri.
+        </p>
+        <p>
+          Dal <b>tuo profilo</b>, nella sezione «Notifiche», scegli quando ricevere i promemoria delle
+          lezioni (il giorno prima, la mattina, o alcune ore prima) e su quali canali. Le notifiche
+          dentro l'app sono già attive; email e push saranno abilitate in seguito.
+        </p>
+      </>
+    ),
+  },
+  {
     id: 'privacy',
     titolo: 'Privacy e dati',
     contenuto: (

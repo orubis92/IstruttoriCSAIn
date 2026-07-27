@@ -1,10 +1,28 @@
 import { supabase } from '@/lib/supabase'
 import type {
+  ConteggioNonLetti,
   Contatto,
   Conversazione,
   ConversazioneMembro,
   Messaggio,
 } from '@/lib/database.types'
+
+/** Conteggio dei messaggi non letti per conversazione, per l'utente corrente. */
+export async function messaggiNonLetti(): Promise<ConteggioNonLetti[]> {
+  const { data, error } = await supabase.rpc('messaggi_non_letti')
+  if (error) throw error
+  return (data as ConteggioNonLetti[]) ?? []
+}
+
+/** Segna come letta una conversazione (aggiorna l'ultimo accesso dell'utente). */
+export async function segnaLetto(conversazioneId: string, mioId: string): Promise<void> {
+  const { error } = await supabase
+    .from('conversazione_membri')
+    .update({ ultimo_letto_il: new Date().toISOString() })
+    .eq('conversazione_id', conversazioneId)
+    .eq('utente_id', mioId)
+  if (error) throw error
+}
 
 export async function listaConversazioni(): Promise<Conversazione[]> {
   const { data, error } = await supabase

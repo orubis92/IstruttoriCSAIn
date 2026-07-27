@@ -287,6 +287,21 @@ export interface Contatto {
   asd_id: string | null
 }
 
+export interface ConteggioNonLetti {
+  conversazione_id: string
+  non_letti: number
+}
+
+export interface PreferenzeNotifiche {
+  utente_id: string
+  giorno_prima: boolean
+  mattina: boolean
+  ore_prima: number | null
+  via_email: boolean
+  via_push: boolean
+  aggiornato_il: string
+}
+
 export type StatoProposta = 'IN_REVISIONE' | 'ACCETTATA' | 'RIFIUTATA'
 
 /** Giornata dentro lo snapshot di una proposta o di un modello. */

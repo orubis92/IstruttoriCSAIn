@@ -18,6 +18,7 @@ import {
 import { useAuth } from '@/context/AuthContext'
 import { Avatar } from '@/components/ui'
 import { GuidaButton } from '@/components/Guida'
+import { NotificheBell } from '@/components/NotificheBell'
 import { getLogoCsain } from '@/api/piattaforma'
 import { RUOLO_LABEL, nomeCompleto } from '@/lib/format'
 import type { RuoloUtente } from '@/lib/database.types'
@@ -123,6 +124,7 @@ export default function Layout() {
           </div>
 
           <div className="flex items-center gap-1">
+          <NotificheBell />
           <Link to="/impostazioni" className="icon-btn" aria-label="Impostazioni" title="Impostazioni">
             <Settings className="h-5 w-5" />
           </Link>
