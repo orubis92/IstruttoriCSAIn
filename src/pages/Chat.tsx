@@ -128,11 +128,10 @@ export default function Chat() {
           {selezionata ? (
             <Conversazione
               conversazioneId={selezionata}
-              titolo={
-                conversazioni.data
-                  ? titoloConv(conversazioni.data.find((c) => c.id === selezionata)!)
-                  : ''
-              }
+              titolo={(() => {
+                const c = (conversazioni.data ?? []).find((x) => x.id === selezionata)
+                return c ? titoloConv(c) : 'Chat'
+              })()}
               onIndietro={() => setSelezionata(null)}
             />
           ) : (
