@@ -61,6 +61,7 @@ import {
   nomeCompleto,
 } from '@/lib/format'
 import type {
+  Corso,
   Giornata,
   Iscrizione,
   EsitoCorso,
