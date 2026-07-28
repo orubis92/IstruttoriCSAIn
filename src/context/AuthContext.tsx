@@ -9,6 +9,7 @@ import {
 } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
+import { queryClient } from '@/lib/queryClient'
 import type { Asd, RuoloUtente, Utente } from '@/lib/database.types'
 
 interface AuthState {
@@ -89,7 +90,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(newSession)
         return
       }
-      void gestisci(newSession)
+      // Deferiamo l'elaborazione FUORI dalla callback: eseguire query Supabase
+      // direttamente dentro onAuthStateChange può incrociarsi con il lock interno
+      // dell'autenticazione e far partire richieste prima che il token sia
+      // applicato (al primo accesso i dati tornerebbero vuoti fino a un refresh).
+      setTimeout(() => {
+        void gestisci(newSession)
+      }, 0)
     })
 
     return () => {
@@ -97,6 +104,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       sub.subscription.unsubscribe()
     }
   }, [caricaProfilo])
+
+  // Quando l'identità è pronta (o cambia), invalida tutte le query in cache:
+  // così qualsiasi elenco eventualmente caricato prima che la sessione fosse
+  // completamente attiva (corsi, chat, ecc.) viene ricaricato subito, senza
+  // bisogno di un refresh manuale della pagina.
+  useEffect(() => {
+    if (profilo?.id) {
+      void queryClient.invalidateQueries()
+    }
+  }, [profilo?.id])
 
   const signIn = useCallback(async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password })

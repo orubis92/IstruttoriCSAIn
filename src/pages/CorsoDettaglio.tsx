@@ -1,5 +1,5 @@
 import { useMemo, useState, type FormEvent, type ReactNode } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowLeft,
@@ -27,6 +27,7 @@ import {
   aggiornaGiornata,
   eliminaGiornata,
   cambiaStatoCorso,
+  eliminaCorso,
   iscriviAtleta,
   candidati,
   aggiornaStatoIscrizione,
@@ -82,6 +83,7 @@ const STATI_ISCRIZIONE: StatoIscrizione[] = ['RICHIESTA', 'ATTIVA', 'SOSPESA', '
 
 export default function CorsoDettaglio() {
   const { id = '' } = useParams()
+  const navigate = useNavigate()
   const { isStaff, profilo } = useAuth()
   const toast = useToast()
   const qc = useQueryClient()
@@ -101,6 +103,28 @@ export default function CorsoDettaglio() {
     },
     onError: (e) => toast.errore(messaggioErrore(e)),
   })
+
+  const eliminaMut = useMutation({
+    mutationFn: () => eliminaCorso(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['corsi'] })
+      qc.invalidateQueries({ queryKey: ['giornate-tutte'] })
+      toast.successo('Corso eliminato.')
+      navigate('/corsi', { replace: true })
+    },
+    onError: (e) => toast.errore(messaggioErrore(e)),
+  })
+
+  function confermaElimina() {
+    const nome = corso.data?.titolo ?? 'questo corso'
+    if (
+      window.confirm(
+        `Eliminare il corso "${nome}"?\n\nVerranno rimossi anche giornate, iscrizioni e presenze collegate. L'operazione non è reversibile.`,
+      )
+    ) {
+      eliminaMut.mutate()
+    }
+  }
 
   const mappaMembri = useMemo(() => {
     const m = new Map<string, Utente>()
@@ -129,17 +153,23 @@ export default function CorsoDettaglio() {
         sottotitolo={c.descrizione ?? undefined}
         azioni={
           isStaff ? (
-            <select
-              className="input w-auto"
-              value={c.stato}
-              onChange={(e) => statoMut.mutate(e.target.value as StatoCorso)}
-            >
-              {STATI_CORSO.map((s) => (
-                <option key={s} value={s}>
-                  {STATO_CORSO_LABEL[s]}
-                </option>
-              ))}
-            </select>
+            <>
+              <select
+                className="input w-auto"
+                value={c.stato}
+                onChange={(e) => statoMut.mutate(e.target.value as StatoCorso)}
+              >
+                {STATI_CORSO.map((s) => (
+                  <option key={s} value={s}>
+                    {STATO_CORSO_LABEL[s]}
+                  </option>
+                ))}
+              </select>
+              <button className="btn-danger" onClick={confermaElimina} disabled={eliminaMut.isPending}>
+                {eliminaMut.isPending ? <Spinner className="h-4 w-4" /> : <Trash2 className="h-4 w-4" />}
+                Elimina
+              </button>
+            </>
           ) : (
             <StatoCorsoBadge stato={c.stato} />
           )
