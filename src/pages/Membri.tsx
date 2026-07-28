@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { UserPlus, KeyRound, Copy, Check, Search, Download, Upload, Mail } from 'lucide-react'
 import { scaricaCsv } from '@/lib/csv'
 import { leggiCsv, dataIso, normalizzaIntestazione } from '@/lib/csvimport'
+import { validaCodiceFiscale, coerenteConData } from '@/lib/codicefiscale'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/components/Toast'
 import {
@@ -388,6 +389,23 @@ function FormNuovoMembro({
 
   function invia(e: FormEvent) {
     e.preventDefault()
+    const cfEsito = validaCodiceFiscale(cf)
+    if (!cfEsito.valido) {
+      toast.errore(`Codice fiscale non valido: ${cfEsito.motivo}.`)
+      return
+    }
+    if (minore) {
+      const genEsito = validaCodiceFiscale(genCf)
+      if (!genEsito.valido) {
+        toast.errore(`Codice fiscale del genitore non valido: ${genEsito.motivo}.`)
+        return
+      }
+    }
+    if (cf && dataNascita && !coerenteConData(cf, dataNascita)) {
+      if (!window.confirm('Il codice fiscale non sembra coerente con la data di nascita. Procedere comunque?')) {
+        return
+      }
+    }
     mut.mutate()
   }
 
@@ -429,6 +447,11 @@ function FormNuovoMembro({
             onChange={(e) => setCf(e.target.value.toUpperCase())}
             maxLength={16}
           />
+          {cf.length > 0 && !validaCodiceFiscale(cf).valido && (
+            <p className="mt-1 text-xs text-red-600">
+              Codice fiscale non valido: {validaCodiceFiscale(cf).motivo}
+            </p>
+          )}
         </Field>
         <Field label="Email">
           <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
@@ -540,6 +563,27 @@ function FormDatiAnagrafici({
     onError: (e) => toast.errore(messaggioErrore(e)),
   })
 
+  function salva() {
+    const e1 = validaCodiceFiscale(cf)
+    if (!e1.valido) {
+      toast.errore(`Codice fiscale non valido: ${e1.motivo}.`)
+      return
+    }
+    if (minore) {
+      const e2 = validaCodiceFiscale(genCf)
+      if (!e2.valido) {
+        toast.errore(`Codice fiscale del genitore non valido: ${e2.motivo}.`)
+        return
+      }
+    }
+    if (cf && utente.data_nascita && !coerenteConData(cf, utente.data_nascita)) {
+      if (!window.confirm('Il codice fiscale non sembra coerente con la data di nascita. Procedere comunque?')) {
+        return
+      }
+    }
+    mut.mutate()
+  }
+
   return (
     <Modal titolo={`Dati di ${nomeCompleto(utente)}`} aperto onClose={onClose}>
       <div className="space-y-4">
@@ -550,6 +594,11 @@ function FormDatiAnagrafici({
             onChange={(e) => setCf(e.target.value.toUpperCase())}
             maxLength={16}
           />
+          {cf.length > 0 && !validaCodiceFiscale(cf).valido && (
+            <p className="mt-1 text-xs text-red-600">
+              Codice fiscale non valido: {validaCodiceFiscale(cf).motivo}
+            </p>
+          )}
         </Field>
         <Field label="Tessera CSAIN">
           <input className="input" value={tessera} onChange={(e) => setTessera(e.target.value)} />
@@ -597,7 +646,7 @@ function FormDatiAnagrafici({
           <button className="btn-secondary" onClick={onClose}>
             Annulla
           </button>
-          <button className="btn-primary flex-1" onClick={() => mut.mutate()} disabled={mut.isPending}>
+          <button className="btn-primary flex-1" onClick={salva} disabled={mut.isPending}>
             {mut.isPending && <Spinner className="h-4 w-4" />} Salva
           </button>
         </div>
@@ -696,17 +745,27 @@ function FormImportaCsv({
             const cognome = get(col.cognome)
             const dnRaw = get(col.data)
             const dn = dnRaw ? dataIso(dnRaw) : null
-            const valida = !!nome && !!cognome && (!dnRaw || dn !== null)
+            const cf = get(col.cf) || null
+            const dataOk = !dnRaw || dn !== null
+            const cfOk = validaCodiceFiscale(cf).valido
+            const valida = !!nome && !!cognome && dataOk && cfOk
+            const errore = !nome || !cognome
+              ? 'Nome/cognome mancante'
+              : !dataOk
+                ? 'Data non valida'
+                : !cfOk
+                  ? 'Codice fiscale non valido'
+                  : undefined
             return {
               nome,
               cognome,
               dataNascita: dn,
-              codiceFiscale: get(col.cf) || null,
+              codiceFiscale: cf,
               nTesseraCsain: get(col.tessera) || null,
               email: get(col.email) || null,
               telefono: get(col.telefono) || null,
               valida,
-              errore: !nome || !cognome ? 'Nome/cognome mancante' : dnRaw && dn === null ? 'Data non valida' : undefined,
+              errore,
             }
           }),
         )
