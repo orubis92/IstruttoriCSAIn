@@ -57,8 +57,11 @@ export function NotificheBell() {
 
       {aperto && (
         <>
-          <div className="fixed inset-0 z-10" onClick={() => setAperto(false)} />
-          <div className="absolute right-0 z-20 mt-2 w-80 max-w-[90vw] overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg">
+          <div className="fixed inset-0 z-30" onClick={() => setAperto(false)} />
+          {/* Su telefono il pannello è fissato a tutta larghezza (con margini),
+              così non esce mai dallo schermo; da tablet/desktop torna un menù
+              ancorato al bordo destro sotto la campanella. */}
+          <div className="fixed inset-x-2 top-16 z-40 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg sm:absolute sm:inset-x-auto sm:right-0 sm:top-auto sm:mt-2 sm:w-80">
             <div className="border-b border-slate-100 px-4 py-2.5">
               <p className="text-sm font-semibold text-slate-800">Notifiche</p>
             </div>
