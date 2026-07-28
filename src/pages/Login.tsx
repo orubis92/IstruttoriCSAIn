@@ -4,12 +4,13 @@ import { Target } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/components/Toast'
 import { messaggioErrore } from '@/api/errors'
+import { supabase } from '@/lib/supabase'
 import { Spinner, Alert } from '@/components/ui'
 
 export default function Login() {
   const { session, signIn, signUp, loading } = useAuth()
   const toast = useToast()
-  const [modo, setModo] = useState<'accedi' | 'registra'>('accedi')
+  const [modo, setModo] = useState<'accedi' | 'registra' | 'recupero'>('accedi')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [invio, setInvio] = useState(false)
@@ -38,6 +39,29 @@ export default function Login() {
     }
   }
 
+  async function inviaRecupero(e: FormEvent) {
+    e.preventDefault()
+    setInvio(true)
+    setAvviso(null)
+    try {
+      await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: window.location.origin + '/reset-password',
+      })
+    } catch (err) {
+      // Non riveliamo se l'email è registrata: registriamo solo in console.
+      // eslint-disable-next-line no-console
+      console.error('Errore invio email di recupero:', messaggioErrore(err))
+    } finally {
+      // Mostriamo sempre lo stesso messaggio, anche se l'email non esiste,
+      // per non rivelare quali indirizzi sono registrati.
+      setInvio(false)
+      setModo('accedi')
+      setAvviso(
+        'Se l\'indirizzo è registrato, ti abbiamo inviato un\'email per reimpostare la password.',
+      )
+    }
+  }
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-brand-50 to-slate-100 px-4">
       <div className="w-full max-w-sm">
@@ -50,24 +74,26 @@ export default function Login() {
         </div>
 
         <div className="card p-6">
-          <div className="mb-5 flex rounded-lg bg-slate-100 p-1">
-            <button
-              className={`flex-1 rounded-md py-1.5 text-sm font-medium transition-colors ${
-                modo === 'accedi' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'
-              }`}
-              onClick={() => setModo('accedi')}
-            >
-              Accedi
-            </button>
-            <button
-              className={`flex-1 rounded-md py-1.5 text-sm font-medium transition-colors ${
-                modo === 'registra' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'
-              }`}
-              onClick={() => setModo('registra')}
-            >
-              Crea account
-            </button>
-          </div>
+          {modo !== 'recupero' && (
+            <div className="mb-5 flex rounded-lg bg-slate-100 p-1">
+              <button
+                className={`flex-1 rounded-md py-1.5 text-sm font-medium transition-colors ${
+                  modo === 'accedi' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'
+                }`}
+                onClick={() => setModo('accedi')}
+              >
+                Accedi
+              </button>
+              <button
+                className={`flex-1 rounded-md py-1.5 text-sm font-medium transition-colors ${
+                  modo === 'registra' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'
+                }`}
+                onClick={() => setModo('registra')}
+              >
+                Crea account
+              </button>
+            </div>
+          )}
 
           {avviso && (
             <div className="mb-4">
@@ -75,46 +101,100 @@ export default function Login() {
             </div>
           )}
 
-          <form onSubmit={invia} className="space-y-4">
-            <div>
-              <label className="label" htmlFor="email">
-                Email
-              </label>
-              <input
-                id="email"
-                type="email"
-                autoComplete="email"
-                className="input"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </div>
-            <div>
-              <label className="label" htmlFor="password">
-                Password
-              </label>
-              <input
-                id="password"
-                type="password"
-                autoComplete={modo === 'accedi' ? 'current-password' : 'new-password'}
-                className="input"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                minLength={6}
-                required
-              />
-            </div>
-            <button type="submit" className="btn-primary w-full" disabled={invio}>
-              {invio && <Spinner className="h-4 w-4" />}
-              {modo === 'accedi' ? 'Accedi' : 'Crea account'}
-            </button>
-          </form>
+          {modo === 'recupero' ? (
+            <form onSubmit={inviaRecupero} className="space-y-4">
+              <div>
+                <h2 className="font-semibold text-slate-900">Recupera la password</h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  Inserisci la tua email: ti invieremo un link per reimpostare la password.
+                </p>
+              </div>
+              <div>
+                <label className="label" htmlFor="email">
+                  Email
+                </label>
+                <input
+                  id="email"
+                  type="email"
+                  autoComplete="email"
+                  className="input"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+              </div>
+              <button type="submit" className="btn-primary w-full" disabled={invio}>
+                {invio && <Spinner className="h-4 w-4" />}
+                Invia link di reset
+              </button>
+              <button
+                type="button"
+                className="btn-ghost mx-auto flex text-sm"
+                onClick={() => {
+                  setModo('accedi')
+                  setAvviso(null)
+                }}
+              >
+                Torna al login
+              </button>
+            </form>
+          ) : (
+            <>
+              <form onSubmit={invia} className="space-y-4">
+                <div>
+                  <label className="label" htmlFor="email">
+                    Email
+                  </label>
+                  <input
+                    id="email"
+                    type="email"
+                    autoComplete="email"
+                    className="input"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="label" htmlFor="password">
+                    Password
+                  </label>
+                  <input
+                    id="password"
+                    type="password"
+                    autoComplete={modo === 'accedi' ? 'current-password' : 'new-password'}
+                    className="input"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    minLength={6}
+                    required
+                  />
+                </div>
+                <button type="submit" className="btn-primary w-full" disabled={invio}>
+                  {invio && <Spinner className="h-4 w-4" />}
+                  {modo === 'accedi' ? 'Accedi' : 'Crea account'}
+                </button>
+              </form>
 
-          {modo === 'registra' && (
-            <p className="mt-4 text-center text-xs text-slate-400">
-              Dopo aver creato l'account potrai registrare la tua ASD o inserire un codice invito.
-            </p>
+              {modo === 'accedi' && (
+                <button
+                  type="button"
+                  className="mt-3 block w-full text-center text-sm font-medium text-brand-700 hover:underline"
+                  onClick={() => {
+                    setModo('recupero')
+                    setAvviso(null)
+                  }}
+                >
+                  Password dimenticata?
+                </button>
+              )}
+
+              {modo === 'registra' && (
+                <p className="mt-4 text-center text-xs text-slate-400">
+                  Dopo aver creato l'account potrai registrare la tua ASD o inserire un codice invito.
+                </p>
+              )}
+            </>
           )}
         </div>
       </div>

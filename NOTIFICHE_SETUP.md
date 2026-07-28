@@ -60,7 +60,20 @@ Imposta i segreti (una riga sola, sostituendo i valori):
 
 ```
 supabase secrets set VAPID_PUBLIC_KEY=... VAPID_PRIVATE_KEY=... VAPID_SUBJECT=mailto:tuaemail@dominio.it RESEND_API_KEY=re_... RESEND_FROM="IstruttoriCSAIn <onboarding@resend.dev>" CRON_SECRET=il_tuo_segreto
+supabase secrets set VAPID_PUBLIC_KEY=BLYuRFAOs6vTkTeZFDZ5D_R9C6TnhkYleWC0espvi_4lZdJASo8ty1eZKwtraGic6BCA5XxhxFtrP6e6vjyQ9jc VAPID_PRIVATE_KEY=hlXu5EuqOzAi4DWjBxTgru94hdKeGmuLI-rjI7jFgK4 VAPID_SUBJECT=mailto:orubis92@gmail.com CRON_SECRET=9&U18qeH5j4eYxTqPht@
 ```
+
+select cron.schedule(
+  'invia-notifiche',
+  '*/5 * * * *',
+  $$
+  select net.http_post(
+    url     := 'https://qrexvpfivhnoxsndebrj.functions.supabase.co/invia-notifiche',
+    headers := jsonb_build_object('Content-Type','application/json','x-cron-secret','9&U18qeH5j4eYxTqPht@'),
+    body    := '{}'::jsonb
+  );
+  $$
+);
 
 ## 7. Programma l'invio con pg_cron
 

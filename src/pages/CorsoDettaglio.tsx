@@ -59,6 +59,7 @@ import {
 } from '@/components/ui'
 import { StatoCorsoBadge } from '@/pages/Dashboard'
 import { scaricaReportPresenzePdf, reportPresenzeCsv } from '@/lib/pdf'
+import { scaricaIcsCorso } from '@/lib/ical'
 import {
   STATO_CORSO_LABEL,
   STATO_ISCRIZIONE_LABEL,
@@ -184,6 +185,15 @@ export default function CorsoDettaglio() {
           <Users className="h-4 w-4" /> {(iscrizioni.data ?? []).length} iscritti
           {c.posti_massimi ? ` / ${c.posti_massimi}` : ''}
         </span>
+        {(giornate.data ?? []).some((g) => g.data) && (
+          <button
+            className="btn-ghost px-2 py-1 text-sm"
+            onClick={() => scaricaIcsCorso(c.titolo, giornate.data ?? [])}
+            title="Scarica le lezioni per il calendario"
+          >
+            <CalendarDays className="h-4 w-4" /> Aggiungi al calendario (.ics)
+          </button>
+        )}
       </div>
 
       {puoCandidarsi && (

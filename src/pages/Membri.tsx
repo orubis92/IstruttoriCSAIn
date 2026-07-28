@@ -1,8 +1,9 @@
-import { useMemo, useState, type FormEvent } from 'react'
+import { useMemo, useState, type FormEvent, type ChangeEvent } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { UserPlus, KeyRound, Copy, Check, Search, Download } from 'lucide-react'
+import { UserPlus, KeyRound, Copy, Check, Search, Download, Upload, Mail } from 'lucide-react'
 import { scaricaCsv } from '@/lib/csv'
+import { leggiCsv, dataIso, normalizzaIntestazione } from '@/lib/csvimport'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/components/Toast'
 import {
@@ -42,7 +43,9 @@ export default function Membri() {
   const [cerca, setCerca] = useState('')
   const [filtro, setFiltro] = useState<'TUTTI' | RuoloUtente>('TUTTI')
   const [nuovoAperto, setNuovoAperto] = useState(false)
+  const [importaAperto, setImportaAperto] = useState(false)
   const [invitoCodice, setInvitoCodice] = useState<string | null>(null)
+  const [invitoEmail, setInvitoEmail] = useState<string | null>(null)
   const [modifica, setModifica] = useState<Utente | null>(null)
   const [certificatoDi, setCertificatoDi] = useState<Utente | null>(null)
 
@@ -62,7 +65,10 @@ export default function Membri() {
 
   const inviteMut = useMutation({
     mutationFn: (utenteId: string) => creaInvito(utenteId),
-    onSuccess: (inv) => setInvitoCodice(inv.codice),
+    onSuccess: (inv, utenteId) => {
+      setInvitoCodice(inv.codice)
+      setInvitoEmail((membri.data ?? []).find((x) => x.id === utenteId)?.email ?? null)
+    },
     onError: (e) => toast.errore(messaggioErrore(e)),
   })
 
@@ -147,6 +153,9 @@ export default function Membri() {
           <>
             <button className="btn-secondary" onClick={esporta} disabled={filtrati.length === 0}>
               <Download className="h-4 w-4" /> Esporta CSV
+            </button>
+            <button className="btn-secondary" onClick={() => setImportaAperto(true)}>
+              <Upload className="h-4 w-4" /> Importa CSV
             </button>
             <button className="btn-primary" onClick={() => setNuovoAperto(true)}>
               <UserPlus className="h-4 w-4" /> Nuovo membro
@@ -255,7 +264,22 @@ export default function Membri() {
           onFatto={(codice) => {
             setNuovoAperto(false)
             invalida()
-            if (codice) setInvitoCodice(codice)
+            if (codice) {
+              setInvitoEmail(null)
+              setInvitoCodice(codice)
+            }
+          }}
+        />
+      )}
+
+      {importaAperto && asd && (
+        <FormImportaCsv
+          asdId={asd.id}
+          creatoDa={profilo?.id ?? null}
+          onClose={() => setImportaAperto(false)}
+          onFatto={() => {
+            setImportaAperto(false)
+            invalida()
           }}
         />
       )}
@@ -280,12 +304,20 @@ export default function Membri() {
         />
       )}
 
-      <Modal titolo="Codice invito" aperto={!!invitoCodice} onClose={() => setInvitoCodice(null)}>
+      <Modal
+        titolo="Codice invito"
+        aperto={!!invitoCodice}
+        onClose={() => {
+          setInvitoCodice(null)
+          setInvitoEmail(null)
+        }}
+      >
         <p className="mb-3 text-sm text-slate-600">
           Consegna questo codice all'interessato: al primo accesso lo inserirà per attivare il
           proprio account.
         </p>
         {invitoCodice && <CodiceCopiabile codice={invitoCodice} />}
+        {invitoCodice && <InvitoPerEmail codice={invitoCodice} email={invitoEmail} />}
       </Modal>
     </div>
   )
@@ -577,6 +609,239 @@ function FormDatiAnagrafici({
 function nomeGenitore(m: Utente): string {
   const s = `${m.genitore_nome ?? ''} ${m.genitore_cognome ?? ''}`.trim()
   return s
+}
+
+function InvitoPerEmail({ codice, email }: { codice: string; email: string | null }) {
+  const app = window.location.origin
+  const oggetto = 'Invito ad attivare il tuo account'
+  const corpo =
+    `Ciao,\n\n` +
+    `è stato creato per te un account sulla piattaforma di gestione dei corsi.\n\n` +
+    `Per attivarlo:\n` +
+    `1) apri ${app}\n` +
+    `2) crea l'accesso con la tua email\n` +
+    `3) quando richiesto, inserisci questo codice invito:\n\n` +
+    `${codice}\n\n` +
+    `A presto.`
+  const href = `mailto:${email ?? ''}?subject=${encodeURIComponent(oggetto)}&body=${encodeURIComponent(corpo)}`
+  return (
+    <a href={href} className="btn-secondary mt-3 w-full">
+      <Mail className="h-4 w-4" /> Invia per email{email ? ` a ${email}` : ''}
+    </a>
+  )
+}
+
+interface RigaImport {
+  nome: string
+  cognome: string
+  dataNascita: string | null
+  codiceFiscale: string | null
+  nTesseraCsain: string | null
+  email: string | null
+  telefono: string | null
+  valida: boolean
+  errore?: string
+}
+
+function mappaColonne(intestazioni: string[]) {
+  const norm = intestazioni.map(normalizzaIntestazione)
+  const trova = (test: (h: string) => boolean) => norm.findIndex(test)
+  return {
+    nome: trova((h) => h === 'nome'),
+    cognome: trova((h) => h === 'cognome'),
+    data: trova((h) => h.includes('data') && h.includes('nasc')),
+    cf: trova((h) => (h.includes('fiscale') || h === 'cf') && !h.includes('genitore')),
+    tessera: trova((h) => h.includes('tessera')),
+    email: trova((h) => h === 'email'),
+    telefono: trova((h) => h === 'telefono' || h === 'tel'),
+  }
+}
+
+function FormImportaCsv({
+  asdId,
+  creatoDa,
+  onClose,
+  onFatto,
+}: {
+  asdId: string
+  creatoDa: string | null
+  onClose: () => void
+  onFatto: () => void
+}) {
+  const toast = useToast()
+  const [righe, setRighe] = useState<RigaImport[]>([])
+  const [nomeFile, setNomeFile] = useState('')
+
+  const validi = useMemo(() => righe.filter((r) => r.valida), [righe])
+  const nonValidi = righe.length - validi.length
+
+  function onFile(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setNomeFile(file.name)
+    const reader = new FileReader()
+    reader.onload = () => {
+      try {
+        const { intestazioni, righe: dati } = leggiCsv(String(reader.result))
+        const col = mappaColonne(intestazioni)
+        if (col.nome < 0 || col.cognome < 0) {
+          toast.errore('Il file deve contenere almeno le colonne "Nome" e "Cognome".')
+          setRighe([])
+          return
+        }
+        setRighe(
+          dati.map<RigaImport>((r) => {
+            const get = (i: number) => (i >= 0 ? (r[i] ?? '').trim() : '')
+            const nome = get(col.nome)
+            const cognome = get(col.cognome)
+            const dnRaw = get(col.data)
+            const dn = dnRaw ? dataIso(dnRaw) : null
+            const valida = !!nome && !!cognome && (!dnRaw || dn !== null)
+            return {
+              nome,
+              cognome,
+              dataNascita: dn,
+              codiceFiscale: get(col.cf) || null,
+              nTesseraCsain: get(col.tessera) || null,
+              email: get(col.email) || null,
+              telefono: get(col.telefono) || null,
+              valida,
+              errore: !nome || !cognome ? 'Nome/cognome mancante' : dnRaw && dn === null ? 'Data non valida' : undefined,
+            }
+          }),
+        )
+      } catch {
+        toast.errore('Impossibile leggere il file CSV.')
+      }
+    }
+    reader.readAsText(file, 'utf-8')
+  }
+
+  const importa = useMutation({
+    mutationFn: async () => {
+      let creati = 0
+      let errori = 0
+      for (const r of validi) {
+        try {
+          await creaUtente({
+            ruolo: 'ATLETA',
+            asdId,
+            nome: r.nome,
+            cognome: r.cognome,
+            dataNascita: r.dataNascita,
+            codiceFiscale: r.codiceFiscale,
+            nTesseraCsain: r.nTesseraCsain,
+            email: r.email,
+            telefono: r.telefono,
+            creatoDa,
+          })
+          creati++
+        } catch {
+          errori++
+        }
+      }
+      return { creati, errori }
+    },
+    onSuccess: (res) => {
+      toast.successo(`Import completato: ${res.creati} atleti creati${res.errori ? `, ${res.errori} non riusciti` : ''}.`)
+      onFatto()
+    },
+    onError: (e) => toast.errore(messaggioErrore(e)),
+  })
+
+  function scaricaModello() {
+    scaricaCsv(
+      'modello-atleti',
+      [{}],
+      [
+        { intestazione: 'Nome', valore: () => 'Mario' },
+        { intestazione: 'Cognome', valore: () => 'Rossi' },
+        { intestazione: 'Data di nascita', valore: () => '01/09/2010' },
+        { intestazione: 'Codice fiscale', valore: () => '' },
+        { intestazione: 'Tessera CSAIN', valore: () => '' },
+        { intestazione: 'Email', valore: () => '' },
+        { intestazione: 'Telefono', valore: () => '' },
+      ],
+    )
+  }
+
+  return (
+    <Modal titolo="Importa atleti da CSV" aperto onClose={onClose} larghezza="max-w-2xl">
+      <div className="space-y-4">
+        <p className="text-sm text-slate-600">
+          Carica un file CSV con una riga per atleta. Colonne riconosciute:{' '}
+          <span className="font-medium">Nome</span>, <span className="font-medium">Cognome</span>,
+          Data di nascita, Codice fiscale, Tessera CSAIN, Email, Telefono. Nome e cognome sono
+          obbligatori. Gli atleti vengono creati senza account: potrai generare gli inviti dopo.
+        </p>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="btn-secondary cursor-pointer">
+            <Upload className="h-4 w-4" /> Scegli file CSV
+            <input type="file" accept=".csv,text/csv" className="hidden" onChange={onFile} />
+          </label>
+          <button type="button" className="btn-ghost text-sm" onClick={scaricaModello}>
+            <Download className="h-4 w-4" /> Scarica modello
+          </button>
+          {nomeFile && <span className="text-xs text-slate-400">{nomeFile}</span>}
+        </div>
+
+        {righe.length > 0 && (
+          <>
+            <div className="flex flex-wrap gap-2 text-xs">
+              <Badge tono="verde">{validi.length} validi</Badge>
+              {nonValidi > 0 && <Badge tono="rosso">{nonValidi} da correggere</Badge>}
+            </div>
+            <div className="max-h-64 overflow-y-auto rounded-lg border border-slate-200">
+              <table className="w-full text-sm">
+                <thead className="sticky top-0 bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-400">
+                  <tr>
+                    <th className="px-3 py-2">Nome</th>
+                    <th className="px-3 py-2">Cognome</th>
+                    <th className="px-3 py-2">Nascita</th>
+                    <th className="px-3 py-2">Esito</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {righe.slice(0, 50).map((r, i) => (
+                    <tr key={i} className="border-t border-slate-100">
+                      <td className="px-3 py-1.5">{r.nome || '—'}</td>
+                      <td className="px-3 py-1.5">{r.cognome || '—'}</td>
+                      <td className="px-3 py-1.5">{r.dataNascita ? formatData(r.dataNascita) : '—'}</td>
+                      <td className="px-3 py-1.5">
+                        {r.valida ? (
+                          <span className="text-xs text-green-600">ok</span>
+                        ) : (
+                          <span className="text-xs text-red-600">{r.errore}</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {righe.length > 50 && (
+                <p className="px-3 py-2 text-xs text-slate-400">…e altre {righe.length - 50} righe.</p>
+              )}
+            </div>
+          </>
+        )}
+
+        <div className="flex gap-2 pt-1">
+          <button type="button" className="btn-secondary" onClick={onClose}>
+            Annulla
+          </button>
+          <button
+            type="button"
+            className="btn-primary flex-1"
+            onClick={() => importa.mutate()}
+            disabled={validi.length === 0 || importa.isPending}
+          >
+            {importa.isPending && <Spinner className="h-4 w-4" />} Importa {validi.length} atleti
+          </button>
+        </div>
+      </div>
+    </Modal>
+  )
 }
 
 function CertBadge({ stato }: { stato?: StatoCertificato }) {
