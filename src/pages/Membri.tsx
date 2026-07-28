@@ -11,6 +11,7 @@ import {
   attivaDisattiva,
   aggiornaDatiAnagrafici,
   aggiornaUtente,
+  eliminaUtente,
 } from '@/api/utenti'
 import { creaInvito } from '@/api/inviti'
 import {
@@ -73,6 +74,25 @@ export default function Membri() {
     },
     onError: (e) => toast.errore(messaggioErrore(e)),
   })
+
+  const eliminaMut = useMutation({
+    mutationFn: (id: string) => eliminaUtente(id),
+    onSuccess: () => {
+      invalida()
+      toast.successo('Membro eliminato.')
+    },
+    onError: (e) => toast.errore(messaggioErrore(e)),
+  })
+
+  function confermaElimina(m: Utente) {
+    if (
+      window.confirm(
+        `Eliminare definitivamente ${nomeCompleto(m)}?\n\nVerranno rimossi anche iscrizioni, presenze, certificati e documenti collegati. L'operazione non è reversibile.\n\nSe l'obiettivo è solo sospendere il membro, usa invece "Disattiva".`,
+      )
+    ) {
+      eliminaMut.mutate(m.id)
+    }
+  }
 
   const filtrati = useMemo(() => {
     const q = cerca.trim().toLowerCase()
@@ -209,6 +229,15 @@ export default function Membri() {
                     onClick={() => toggleMut.mutate({ id: m.id, attivo: !m.attivo })}
                   >
                     {m.attivo ? 'Disattiva' : 'Riattiva'}
+                  </button>
+                )}
+                {isAdmin && m.id !== profilo?.id && (
+                  <button
+                    className="btn-ghost px-2 py-1 text-xs text-red-600"
+                    onClick={() => confermaElimina(m)}
+                    disabled={eliminaMut.isPending}
+                  >
+                    Elimina
                   </button>
                 )}
               </div>

@@ -121,6 +121,17 @@ export async function attivaDisattiva(id: string, attivo: boolean): Promise<void
   if (error) throw error
 }
 
+/**
+ * Cancella l'anagrafica di un membro (per bozze o membri non più in ASD).
+ * Consentito per policy solo ad amministratori/programmatori. Il database
+ * impedisce comunque di cancellare il proprio profilo o l'ultimo amministratore.
+ * Iscrizioni, presenze e documenti collegati vengono rimossi a cascata.
+ */
+export async function eliminaUtente(id: string): Promise<void> {
+  const { error } = await supabase.from('utenti').delete().eq('id', id)
+  if (error) throw error
+}
+
 /** Elenco (sola lettura) dello staff della propria ASD, per gli atleti. */
 export async function staffAsd(): Promise<StaffAsd[]> {
   const { data, error } = await supabase.from('v_staff_asd').select('*')
