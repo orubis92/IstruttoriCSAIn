@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useRef, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { Loader2, X } from 'lucide-react'
 
@@ -140,6 +140,12 @@ export function Modal({
   children: ReactNode
   larghezza?: string
 }) {
+  // Chiude solo se sia la pressione (mousedown) sia il rilascio (mouseup)
+  // avvengono direttamente sullo sfondo. Così un clic accidentale trascinato
+  // fuori da un campo — mouse giù dentro, mouse su fuori — NON chiude la
+  // finestra e non fa perdere i dati inseriti.
+  const pressioneSulloSfondo = useRef(false)
+
   if (!aperto) return null
   // Reso tramite portale sul body: così la finestra è sempre relativa alla
   // viewport e non a un eventuale contenitore con transform/backdrop-filter
@@ -147,11 +153,16 @@ export function Modal({
   return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/40 p-0 sm:items-center sm:p-4"
-      onClick={onClose}
+      onMouseDown={(e) => {
+        pressioneSulloSfondo.current = e.target === e.currentTarget
+      }}
+      onMouseUp={(e) => {
+        if (pressioneSulloSfondo.current && e.target === e.currentTarget) onClose()
+        pressioneSulloSfondo.current = false
+      }}
     >
       <div
         className={`card w-full ${larghezza} max-h-[92vh] overflow-y-auto rounded-b-none sm:rounded-b-xl`}
-        onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
           <h2 className="text-lg font-semibold text-slate-900">{titolo}</h2>
