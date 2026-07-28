@@ -113,6 +113,14 @@ letture dello staff sui dati di un altro atleta passano dalla RPC
 da «Impostazioni → Registro accessi ai dati sanitari» (solo amministratori e
 programmatori). È ri-eseguibile.
 
+### Eliminazione delle chat (obbligatorio per quella funzione)
+
+Esegui `sql/15_chat_elimina.sql` (dopo 00, 01, 05): aggiunge le funzioni per
+eliminare una conversazione o uscire da un gruppo. Nelle chat dirette può
+eliminare ogni partecipante; nei gruppi solo chi l'ha creato o un amministratore,
+mentre gli altri membri possono uscire. Dalla pagina Chat compaiono le icone
+corrispondenti nell'intestazione della conversazione. È ri-eseguibile.
+
 ### Monitoraggio errori (facoltativo)
 
 Imposta `VITE_SENTRY_DSN` (Vercel + `.env`) con il DSN di un progetto Sentry per

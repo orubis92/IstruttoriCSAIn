@@ -120,6 +120,68 @@ select test.verifica('l''amministratore Beta non vede gli accessi della ASD Alfa
   $$select count(*)::int from audit_accessi
      where asd_id = 'a5d0a5d0-0000-4000-8000-00000000000a'$$, 0);
 
+
+\echo ''
+\echo '== 16. Chat: eliminazione ed uscita =='
+
+-- Dati come proprietario: un gruppo (creato dall'istruttore) con istruttore,
+-- Dario e l'amministratrice Anna; un secondo gruppo per il test amministratore;
+-- una chat diretta istruttore–Dario.
+reset role;
+set request.jwt.claim.sub = '';
+insert into conversazioni (id, tipo, nome, asd_id, creato_da) values
+  ('cafe0000-0000-4000-8000-000000000001','GRUPPO','Gruppo Test', 'a5d0a5d0-0000-4000-8000-00000000000a','c0000000-0000-4000-8000-000000000004'),
+  ('cafe0000-0000-4000-8000-000000000002','GRUPPO','Gruppo Admin','a5d0a5d0-0000-4000-8000-00000000000a','c0000000-0000-4000-8000-000000000004'),
+  ('cafe0000-0000-4000-8000-000000000003','DIRETTA', null, null, 'c0000000-0000-4000-8000-000000000004');
+insert into conversazione_membri (conversazione_id, utente_id) values
+  ('cafe0000-0000-4000-8000-000000000001','c0000000-0000-4000-8000-000000000004'),
+  ('cafe0000-0000-4000-8000-000000000001','c0000000-0000-4000-8000-000000000005'),
+  ('cafe0000-0000-4000-8000-000000000001','c0000000-0000-4000-8000-000000000002'),
+  ('cafe0000-0000-4000-8000-000000000002','c0000000-0000-4000-8000-000000000004'),
+  ('cafe0000-0000-4000-8000-000000000002','c0000000-0000-4000-8000-000000000002'),
+  ('cafe0000-0000-4000-8000-000000000003','c0000000-0000-4000-8000-000000000004'),
+  ('cafe0000-0000-4000-8000-000000000003','c0000000-0000-4000-8000-000000000005');
+set role authenticated;
+
+set request.jwt.claim.sub = 'a0000000-0000-4000-8000-000000000008';   -- atleta ASD Beta (estraneo)
+select test.vietato('un estraneo non puo eliminare una conversazione',
+  $$select elimina_conversazione('cafe0000-0000-4000-8000-000000000001')$$);
+
+set request.jwt.claim.sub = 'a0000000-0000-4000-8000-000000000005';   -- Dario, membro non creatore
+select test.vietato('un membro non creatore non puo eliminare il gruppo',
+  $$select elimina_conversazione('cafe0000-0000-4000-8000-000000000001')$$);
+select test.permesso('un membro puo uscire dal gruppo',
+  $$select esci_da_conversazione('cafe0000-0000-4000-8000-000000000001')$$);
+
+set request.jwt.claim.sub = 'a0000000-0000-4000-8000-000000000004';   -- istruttore (creatore)
+select test.verifica('dopo l''uscita il gruppo ha un membro in meno',
+  $$select count(*)::int from conversazione_membri
+     where conversazione_id = 'cafe0000-0000-4000-8000-000000000001'$$, 2);
+select test.permesso('il creatore elimina il gruppo',
+  $$select elimina_conversazione('cafe0000-0000-4000-8000-000000000001')$$);
+
+reset role;
+set request.jwt.claim.sub = '';
+select test.verifica('il gruppo eliminato non esiste piu',
+  $$select count(*)::int from conversazioni where id = 'cafe0000-0000-4000-8000-000000000001'$$, 0);
+select test.verifica('i membri del gruppo eliminato sono rimossi a cascata',
+  $$select count(*)::int from conversazione_membri
+     where conversazione_id = 'cafe0000-0000-4000-8000-000000000001'$$, 0);
+set role authenticated;
+
+set request.jwt.claim.sub = 'a0000000-0000-4000-8000-000000000002';   -- amministratrice Anna
+select test.permesso('un amministratore elimina un gruppo che non ha creato',
+  $$select elimina_conversazione('cafe0000-0000-4000-8000-000000000002')$$);
+
+set request.jwt.claim.sub = 'a0000000-0000-4000-8000-000000000005';   -- Dario, partecipante alla diretta
+select test.permesso('un partecipante elimina la chat diretta',
+  $$select elimina_conversazione('cafe0000-0000-4000-8000-000000000003')$$);
+
+reset role;
+set request.jwt.claim.sub = '';
+select test.verifica('la chat diretta eliminata non esiste piu',
+  $$select count(*)::int from conversazioni where id = 'cafe0000-0000-4000-8000-000000000003'$$, 0);
+
 reset role;
 \echo ''
 \echo '=============================================='

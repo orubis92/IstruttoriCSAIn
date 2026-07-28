@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { MessageSquarePlus, Users, Send, ArrowLeft, Search, UserPlus } from 'lucide-react'
+import { MessageSquarePlus, Users, Send, ArrowLeft, Search, UserPlus, Trash2, LogOut } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/components/Toast'
 import {
@@ -13,6 +13,8 @@ import {
   creaGruppo,
   messaggiNonLetti,
   segnaLetto,
+  eliminaConversazione,
+  esciDaConversazione,
 } from '@/api/chat'
 import { messaggioErrore } from '@/api/errors'
 import { Card, PageHeader, Modal, Field, Spinner, EmptyState, Avatar } from '@/components/ui'
@@ -20,7 +22,7 @@ import { RUOLO_LABEL, formatDataOra } from '@/lib/format'
 import type { Contatto, Conversazione } from '@/lib/database.types'
 
 export default function Chat() {
-  const { profilo } = useAuth()
+  const { profilo, isAdmin } = useAuth()
   const qc = useQueryClient()
   const [selezionata, setSelezionata] = useState<string | null>(null)
   const [nuovaChat, setNuovaChat] = useState(false)
@@ -144,14 +146,23 @@ export default function Chat() {
         {/* Conversazione aperta */}
         <div className={selezionata ? '' : 'hidden md:block'}>
           {selezionata ? (
-            <Conversazione
-              conversazioneId={selezionata}
-              titolo={(() => {
-                const c = (conversazioni.data ?? []).find((x) => x.id === selezionata)
-                return c ? titoloConv(c) : 'Chat'
-              })()}
-              onIndietro={() => setSelezionata(null)}
-            />
+            (() => {
+              const conv = (conversazioni.data ?? []).find((x) => x.id === selezionata)
+              if (!conv) return null
+              return (
+                <Conversazione
+                  conv={conv}
+                  titolo={titoloConv(conv)}
+                  isAdmin={isAdmin}
+                  onIndietro={() => setSelezionata(null)}
+                  onEliminata={() => {
+                    setSelezionata(null)
+                    qc.invalidateQueries({ queryKey: ['conversazioni'] })
+                    qc.invalidateQueries({ queryKey: ['conv-membri'] })
+                  }}
+                />
+              )
+            })()
           ) : (
             <EmptyState
               icona={<MessageSquarePlus className="h-10 w-10" />}
@@ -191,19 +202,62 @@ export default function Chat() {
 }
 
 function Conversazione({
-  conversazioneId,
+  conv,
   titolo,
+  isAdmin,
   onIndietro,
+  onEliminata,
 }: {
-  conversazioneId: string
+  conv: Conversazione
   titolo: string
+  isAdmin: boolean
   onIndietro: () => void
+  onEliminata: () => void
 }) {
   const { profilo } = useAuth()
   const toast = useToast()
   const qc = useQueryClient()
   const [testo, setTesto] = useState('')
   const fondo = useRef<HTMLDivElement>(null)
+  const conversazioneId = conv.id
+
+  // Chi può eliminare l'intera conversazione: nelle dirette entrambi; nei gruppi
+  // il creatore o un amministratore. Gli altri membri del gruppo possono uscire.
+  const puoEliminare =
+    conv.tipo === 'DIRETTA' || conv.creato_da === profilo?.id || isAdmin
+  const puoUscire = conv.tipo === 'GRUPPO'
+
+  const eliminaMut = useMutation({
+    mutationFn: () => eliminaConversazione(conversazioneId),
+    onSuccess: () => {
+      toast.successo(conv.tipo === 'GRUPPO' ? 'Gruppo eliminato.' : 'Chat eliminata.')
+      onEliminata()
+    },
+    onError: (e) => toast.errore(messaggioErrore(e)),
+  })
+
+  const esciMut = useMutation({
+    mutationFn: () => esciDaConversazione(conversazioneId),
+    onSuccess: () => {
+      toast.successo('Hai lasciato il gruppo.')
+      onEliminata()
+    },
+    onError: (e) => toast.errore(messaggioErrore(e)),
+  })
+
+  function confermaElimina() {
+    const msg =
+      conv.tipo === 'GRUPPO'
+        ? `Eliminare il gruppo "${titolo}" per tutti i membri? I messaggi verranno rimossi. L'operazione non è reversibile.`
+        : `Eliminare questa chat? I messaggi verranno rimossi per entrambi. L'operazione non è reversibile.`
+    if (window.confirm(msg)) eliminaMut.mutate()
+  }
+
+  function confermaEsci() {
+    if (window.confirm(`Vuoi uscire dal gruppo "${titolo}"? Non riceverai più i suoi messaggi.`)) {
+      esciMut.mutate()
+    }
+  }
 
   const msgs = useQuery({
     queryKey: ['messaggi', conversazioneId],
@@ -252,7 +306,29 @@ function Conversazione({
         <button className="btn-ghost -ml-2 p-1.5 md:hidden" onClick={onIndietro} aria-label="Indietro">
           <ArrowLeft className="h-5 w-5" />
         </button>
-        <h2 className="font-semibold text-slate-900">{titolo}</h2>
+        <h2 className="min-w-0 flex-1 truncate font-semibold text-slate-900">{titolo}</h2>
+        {puoUscire && (
+          <button
+            className="btn-ghost p-1.5 text-slate-500"
+            onClick={confermaEsci}
+            disabled={esciMut.isPending}
+            title="Esci dal gruppo"
+            aria-label="Esci dal gruppo"
+          >
+            <LogOut className="h-5 w-5" />
+          </button>
+        )}
+        {puoEliminare && (
+          <button
+            className="btn-ghost p-1.5 text-red-600"
+            onClick={confermaElimina}
+            disabled={eliminaMut.isPending}
+            title={conv.tipo === 'GRUPPO' ? 'Elimina gruppo' : 'Elimina chat'}
+            aria-label="Elimina"
+          >
+            <Trash2 className="h-5 w-5" />
+          </button>
+        )}
       </div>
 
       <div className="flex-1 space-y-2 overflow-y-auto bg-slate-50/50 p-4">

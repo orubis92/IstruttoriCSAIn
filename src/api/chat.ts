@@ -81,3 +81,19 @@ export async function creaGruppo(nome: string, membri: string[]): Promise<string
   if (error) throw error
   return data as string
 }
+
+/**
+ * Elimina l'intera conversazione (messaggi e membri a cascata). Consentito per
+ * le chat dirette a ogni partecipante; per i gruppi solo al creatore o a un
+ * amministratore della ASD (il controllo è nel database).
+ */
+export async function eliminaConversazione(conversazioneId: string): Promise<void> {
+  const { error } = await supabase.rpc('elimina_conversazione', { p_conv: conversazioneId })
+  if (error) throw error
+}
+
+/** Esce da un gruppo (se resta vuoto viene eliminato). Su una diretta la elimina. */
+export async function esciDaConversazione(conversazioneId: string): Promise<void> {
+  const { error } = await supabase.rpc('esci_da_conversazione', { p_conv: conversazioneId })
+  if (error) throw error
+}
