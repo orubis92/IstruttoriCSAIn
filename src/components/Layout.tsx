@@ -10,6 +10,7 @@ import {
   MessageCircle,
   Users,
   Award,
+  BarChart3,
   LogOut,
   Target,
   Settings,
@@ -48,6 +49,12 @@ const NAV: VoceNav[] = [
     to: '/standard',
     label: 'Standard',
     icona: Award,
+    soloRuoli: ['PROGRAMMATORE'],
+  },
+  {
+    to: '/piattaforma',
+    label: 'Piattaforma',
+    icona: BarChart3,
     soloRuoli: ['PROGRAMMATORE'],
   },
 ]

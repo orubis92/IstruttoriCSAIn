@@ -1,19 +1,18 @@
 -- ============================================================================
---  10_privacy.sql — informativa privacy e consenso al primo accesso
+--  17_privacy_aggiornamento.sql — aggiornamento del testo dell'informativa
 --
---    - testo e versione dell'informativa privacy, gestiti dai PROGRAMMATORI
---      (a livello di piattaforma, in impostazioni_piattaforma);
---    - consensi_privacy: registra il consenso di ogni utente, con versione e
---      data, per la tracciabilità richiesta dal GDPR. Al primo accesso (o quando
---      esce una nuova versione) l'app mostra l'informativa e chiede il consenso.
+--  Aggiunge all'informativa privacy due sezioni (Minori e Statistiche di
+--  piattaforma) coerenti con le funzioni introdotte. Poiché l'informativa NON
+--  è ancora stata distribuita agli utenti, il testo viene sostituito senza
+--  aumentare la versione (nessun consenso già prestato da rinnovare).
 --
---  Eseguire dopo 00,01,08. Idempotente.
+--  ATTENZIONE: se in futuro modifichi l'informativa DOPO che è stata pubblicata
+--  e già accettata, aumenta anche privacy_versione, così gli utenti riprestano
+--  il consenso alla nuova versione.
+--
+--  Eseguire dopo 10. Sostituisce il testo corrente (id = 1).
 -- ============================================================================
 
-alter table impostazioni_piattaforma add column if not exists privacy_testo text;
-alter table impostazioni_piattaforma add column if not exists privacy_versione int not null default 1;
-
--- Testo di default (modello da far verificare a un riferimento privacy).
 update impostazioni_piattaforma
    set privacy_testo = $md$INFORMATIVA SUL TRATTAMENTO DEI DATI PERSONALI (art. 13 Reg. UE 2016/679 - GDPR)
 
@@ -42,25 +41,4 @@ Diritti dell'interessato
 Puoi in ogni momento esercitare i diritti di accesso, rettifica, cancellazione, limitazione e opposizione previsti dagli artt. 15-22 GDPR, contattando la ASD.
 
 Prestando il consenso dichiari di aver letto la presente informativa.$md$
- WHERE id = 1 AND privacy_testo IS NULL;
-
--- Registro dei consensi (uno per utente e per versione dell'informativa).
-create table if not exists consensi_privacy (
-  utente_id    uuid not null references utenti(id) on delete cascade,
-  versione     int  not null,
-  accettato_il timestamptz not null default now(),
-  primary key (utente_id, versione)
-);
-
-alter table consensi_privacy enable row level security;
-
--- Ognuno gestisce (vede e registra) solo i propri consensi.
-drop policy if exists consensi_select on consensi_privacy;
-create policy consensi_select on consensi_privacy for select to authenticated
-  using ( utente_id = app.mio_id() );
-
-drop policy if exists consensi_insert on consensi_privacy;
-create policy consensi_insert on consensi_privacy for insert to authenticated
-  with check ( utente_id = app.mio_id() );
-
-grant select, insert on consensi_privacy to authenticated;
+ where id = 1;

@@ -121,6 +121,29 @@ eliminare ogni partecipante; nei gruppi solo chi l'ha creato o un amministratore
 mentre gli altri membri possono uscire. Dalla pagina Chat compaiono le icone
 corrispondenti nell'intestazione della conversazione. È ri-eseguibile.
 
+### Vista di piattaforma per i programmatori (obbligatorio per quella funzione)
+
+Esegui `sql/16_piattaforma_statistiche.sql` (dopo 00, 01, 05, 14): aggiunge, per i
+soli PROGRAMMATORI, le viste con i **metadati** dei corsi di tutte le ASD e gli
+**aggregati** per ASD, più la RPC che registra ogni consultazione nel registro
+accessi. La sezione «Piattaforma» (menu, solo programmatori) mostra riepiloghi,
+un grafico dei corsi attivi per ASD, il dettaglio per ASD e l'elenco corsi con
+filtri ed export CSV.
+
+Per scelta etica/GDPR la vista espone **solo dati aggregati e metadati** (titolo,
+stato, date, conteggi): nessuna anagrafica degli atleti e **nessun dato sanitario**.
+Per trasparenza l'informativa privacy è già aggiornata con la sezione «Statistiche
+di piattaforma» (vedi sotto).
+
+### Aggiornamento dell'informativa privacy
+
+Esegui `sql/17_privacy_aggiornamento.sql` (dopo 10): aggiorna il testo
+dell'informativa aggiungendo le sezioni «Minori» e «Statistiche di piattaforma».
+Poiché l'informativa non è ancora stata distribuita, il testo viene sostituito
+senza aumentare la versione. Se un domani modifichi l'informativa DOPO averla
+pubblicata e fatta accettare, ricordati di aumentare `privacy_versione` così gli
+utenti riprestano il consenso.
+
 ### Monitoraggio errori (facoltativo)
 
 Imposta `VITE_SENTRY_DSN` (Vercel + `.env`) con il DSN di un progetto Sentry per

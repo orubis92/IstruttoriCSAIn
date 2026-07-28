@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase'
+import type { ProgrammatoreAsd, ProgrammatoreCorso } from '@/lib/database.types'
 
 /** Logo CSAIN di piattaforma (data URL), o null se non impostato. */
 export async function getLogoCsain(): Promise<string | null> {
@@ -61,6 +62,34 @@ export interface ConsensoMinore {
   perMinore?: boolean
   firmatarioNome?: string | null
   firmatarioRelazione?: string | null
+}
+
+// --- Vista di piattaforma (solo programmatori) ---
+
+/** Metadati dei corsi di tutte le ASD (nessun dato personale). */
+export async function corsiPiattaforma(): Promise<ProgrammatoreCorso[]> {
+  const { data, error } = await supabase
+    .from('v_programmatore_corsi')
+    .select('*')
+    .order('data_inizio', { ascending: false, nullsFirst: false })
+  if (error) throw error
+  return (data as ProgrammatoreCorso[]) ?? []
+}
+
+/** Aggregati per ASD (solo conteggi). */
+export async function statisticheAsd(): Promise<ProgrammatoreAsd[]> {
+  const { data, error } = await supabase
+    .from('v_programmatore_asd')
+    .select('*')
+    .order('asd_nome', { ascending: true })
+  if (error) throw error
+  return (data as ProgrammatoreAsd[]) ?? []
+}
+
+/** Registra nel registro accessi l'apertura della vista di piattaforma. */
+export async function registraConsultazionePiattaforma(): Promise<void> {
+  const { error } = await supabase.rpc('registra_consultazione_piattaforma')
+  if (error) throw error
 }
 
 export async function registraConsensoPrivacy(

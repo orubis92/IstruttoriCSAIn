@@ -260,6 +260,34 @@ export interface CertificatoMedico {
   aggiornato_il: string
 }
 
+/** Riga della vista v_programmatore_corsi: metadati di un corso (no dati personali). */
+export interface ProgrammatoreCorso {
+  corso_id: string
+  asd_id: string
+  asd_nome: string
+  titolo: string
+  stato: StatoCorso
+  data_inizio: string | null
+  data_fine: string | null
+  posti_massimi: number | null
+  creato_il: string
+  n_iscritti: number
+  n_iscritti_attivi: number
+}
+
+/** Riga della vista v_programmatore_asd: aggregati per ASD (solo conteggi). */
+export interface ProgrammatoreAsd {
+  asd_id: string
+  asd_nome: string
+  attiva: boolean
+  n_corsi_totali: number
+  n_corsi_attivi: number
+  n_corsi_conclusi: number
+  n_iscrizioni_attive: number
+  n_atleti: number
+  n_staff: number
+}
+
 export type StatoCertificato = 'ASSENTE' | 'SCADUTO' | 'IN_SCADENZA' | 'VALIDO'
 
 /** Riga della vista v_certificati_atleti: stato del certificato più recente. */

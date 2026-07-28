@@ -181,6 +181,29 @@ reset role;
 set request.jwt.claim.sub = '';
 select test.verifica('la chat diretta eliminata non esiste piu',
   $$select count(*)::int from conversazioni where id = 'cafe0000-0000-4000-8000-000000000003'$$, 0);
+set role authenticated;
+
+
+\echo ''
+\echo '== 17. Vista di piattaforma (solo programmatori) =='
+
+set request.jwt.claim.sub = 'a0000000-0000-4000-8000-000000000001';   -- PROGRAMMATORE
+select test.verifica('il programmatore vede i corsi di piu ASD',
+  $$select (count(distinct asd_id) >= 2)::int from v_programmatore_corsi$$, 1);
+select test.verifica('il programmatore vede gli aggregati di tutte le ASD',
+  $$select (count(*) >= 2)::int from v_programmatore_asd$$, 1);
+select test.permesso('il programmatore registra la consultazione',
+  $$select registra_consultazione_piattaforma()$$);
+select test.verifica('la consultazione di piattaforma e tracciata',
+  $$select count(*)::int from audit_accessi where oggetto_tipo = 'PIATTAFORMA' and azione = 'CONSULTAZIONE'$$, 1);
+
+set request.jwt.claim.sub = 'a0000000-0000-4000-8000-000000000002';   -- amministratrice Alfa
+select test.verifica('un amministratore NON vede la vista di piattaforma (corsi)',
+  $$select count(*)::int from v_programmatore_corsi$$, 0);
+select test.verifica('un amministratore NON vede la vista di piattaforma (ASD)',
+  $$select count(*)::int from v_programmatore_asd$$, 0);
+select test.vietato('un amministratore non puo registrare una consultazione di piattaforma',
+  $$select registra_consultazione_piattaforma()$$);
 
 reset role;
 \echo ''
