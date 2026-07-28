@@ -75,8 +75,15 @@ riferimento privacy. È ri-eseguibile.
 Esegui `sql/09_notifiche.sql` (dopo 00, 01 e 05): aggiunge il conteggio dei
 messaggi non letti e le preferenze di notifica per utente (canali e anticipo dei
 promemoria). La campanella in alto a destra mostra messaggi non letti e prossime
-lezioni. Le notifiche push/email verranno aggiunte in una fase successiva
-(richiedono chiavi VAPID / un servizio email e funzioni schedulate). È ri-eseguibile.
+lezioni. È ri-eseguibile.
+
+### Notifiche push ed email
+
+Esegui `sql/11_push_email.sql` (dopo 00, 01, 05, 09): aggiunge la coda delle
+notifiche, le iscrizioni push e la generazione dei promemoria. L'invio vero
+(push + email) richiede una funzione Edge, chiavi VAPID, un servizio email
+(Resend) e uno scheduler (pg_cron). **Segui la guida `NOTIFICHE_SETUP.md`** per
+tutti i passaggi. La funzione Edge è in `supabase/functions/invia-notifiche/`.
 
 ### Dati di base (opzionale ma consigliato)
 

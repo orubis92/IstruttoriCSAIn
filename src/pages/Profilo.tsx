@@ -5,6 +5,7 @@ import { useToast } from '@/components/Toast'
 import { aggiornaUtente, staffAsd } from '@/api/utenti'
 import { mieiCertificati } from '@/api/certificati'
 import { getPreferenze, salvaPreferenze } from '@/api/notifiche'
+import { attivaPush, pushSupportato, pushConfigurato } from '@/api/push'
 import { messaggioErrore } from '@/api/errors'
 import { Card, PageHeader, Field, Spinner, Badge, Alert } from '@/components/ui'
 import { RUOLO_LABEL, formatData, nomeCompleto } from '@/lib/format'
@@ -242,13 +243,37 @@ function CardNotifiche({ utenteId }: { utenteId: string }) {
                 Notifiche push sul dispositivo
               </label>
             </div>
-            <div className="mt-3">
-              <Alert tono="blu">
-                Le notifiche <b>dentro l'app</b> (campanella) sono già attive. Email e push verranno
-                abilitate quando configureremo i rispettivi servizi: la tua scelta qui viene comunque
-                salvata.
-              </Alert>
-            </div>
+
+            {viaPush && (
+              <div className="mt-3">
+                {pushSupportato() && pushConfigurato() ? (
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={async () => {
+                      try {
+                        await attivaPush(utenteId)
+                        toast.successo('Notifiche push attivate su questo dispositivo.')
+                      } catch (e) {
+                        toast.errore(messaggioErrore(e))
+                      }
+                    }}
+                  >
+                    Attiva le push su questo dispositivo
+                  </button>
+                ) : (
+                  <Alert tono="blu">
+                    {pushSupportato()
+                      ? 'Le notifiche push non sono ancora configurate lato server.'
+                      : 'Questo dispositivo/browser non supporta le notifiche push.'}
+                  </Alert>
+                )}
+                <p className="mt-2 text-xs text-slate-400">
+                  Va attivato su ogni dispositivo su cui vuoi ricevere le push. Su iPhone funziona solo
+                  se hai aggiunto l'app alla schermata Home.
+                </p>
+              </div>
+            )}
           </div>
 
           <button className="btn-primary" onClick={() => mut.mutate()} disabled={mut.isPending}>

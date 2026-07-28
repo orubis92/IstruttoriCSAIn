@@ -32,6 +32,8 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
         navigateFallbackDenylist: [/^\/auth/],
+        // Aggiunge la gestione delle notifiche push al service worker generato.
+        importScripts: ['push-sw.js'],
       },
     }),
   ],
