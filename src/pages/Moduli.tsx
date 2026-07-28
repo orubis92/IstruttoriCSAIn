@@ -10,7 +10,7 @@ import {
   creaModuloCompilato,
   cambiaStatoModulo,
 } from '@/api/moduli'
-import { getDpa, accettazioneCorrente, compilaTestoDpa } from '@/api/dpa'
+import { getDpa, accettazioneCorrente, compilaTestoDpa, listaAccettazioniDpa } from '@/api/dpa'
 import { scaricaDpaPdf } from '@/lib/pdf'
 import { listaMembri } from '@/api/utenti'
 import { messaggioErrore } from '@/api/errors'
@@ -35,7 +35,7 @@ import type {
 } from '@/lib/database.types'
 
 export default function Moduli() {
-  const { asd, isStaff, profilo } = useAuth()
+  const { asd, isStaff, isProgrammatore, profilo } = useAuth()
   const toast = useToast()
   const qc = useQueryClient()
   const [compila, setCompila] = useState<ModelloModulo | null>(null)
@@ -70,6 +70,7 @@ export default function Moduli() {
       <PageHeader titolo="Modulistica" sottotitolo={asd?.nome} />
 
       {isStaff && asd && <CardDpa asdId={asd.id} />}
+      {isProgrammatore && <SezioneDpaProgrammatore />}
 
       <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-400">
         Moduli disponibili
@@ -295,6 +296,53 @@ function CardDpa({ asdId }: { asdId: string }) {
           </button>
         )}
       </div>
+    </Card>
+  )
+}
+
+function SezioneDpaProgrammatore() {
+  const dpa = useQuery({ queryKey: ['dpa'], queryFn: getDpa })
+  const acc = useQuery({ queryKey: ['dpa-accettazioni'], queryFn: listaAccettazioniDpa })
+  const righe = acc.data ?? []
+
+  return (
+    <Card className="mb-6 p-5">
+      <h2 className="mb-1 font-semibold text-slate-900">Accordi DPA firmati dalle ASD</h2>
+      <p className="mb-3 text-sm text-slate-500">
+        Versione corrente del documento: <b>{dpa.data?.versione ?? '—'}</b>.
+      </p>
+      {acc.isLoading ? (
+        <Spinner className="h-5 w-5 text-brand-600" />
+      ) : righe.length === 0 ? (
+        <p className="text-sm text-slate-400">Nessuna ASD ha ancora firmato il DPA.</p>
+      ) : (
+        <div className="divide-y divide-slate-100">
+          {righe.map((a) => (
+            <div
+              key={`${a.asd_id}:${a.versione}`}
+              className="flex flex-wrap items-center justify-between gap-3 py-3"
+            >
+              <div className="min-w-0">
+                <p className="font-medium text-slate-800">{a.denominazione || 'ASD'}</p>
+                <p className="text-xs text-slate-400">
+                  Firmato il {formatDataOra(a.accettato_il)} da {a.firmatario_nome}
+                  {a.firmatario_ruolo ? ` (${a.firmatario_ruolo})` : ''} · versione {a.versione}
+                </p>
+              </div>
+              <button
+                className="btn-secondary shrink-0"
+                disabled={!dpa.data?.testo}
+                onClick={() =>
+                  dpa.data?.testo &&
+                  scaricaDpaPdf({ testoCompilato: compilaTestoDpa(dpa.data.testo, a), acc: a })
+                }
+              >
+                <Download className="h-4 w-4" /> Scarica PDF
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </Card>
   )
 }

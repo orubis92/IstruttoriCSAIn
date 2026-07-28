@@ -28,6 +28,19 @@ export async function accettazioneCorrente(
   return (data as AccettazioneDpa) ?? null
 }
 
+/**
+ * Elenco delle accettazioni del DPA. Per policy: un programmatore vede quelle di
+ * tutte le ASD; lo staff solo quella della propria ASD.
+ */
+export async function listaAccettazioniDpa(): Promise<AccettazioneDpa[]> {
+  const { data, error } = await supabase
+    .from('accettazioni_dpa')
+    .select('*')
+    .order('accettato_il', { ascending: false })
+  if (error) throw error
+  return (data as AccettazioneDpa[]) ?? []
+}
+
 export interface AccettaDpaInput {
   asdId: string
   versione: number
