@@ -7,7 +7,7 @@ import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { scaricaCsv, type ColonnaCsv } from '@/lib/csv'
 import { formatData } from '@/lib/format'
-import type { Corso, Giornata, Presenza, StatoPresenza, EsitoCorso } from '@/lib/database.types'
+import type { AccettazioneDpa, Corso, Giornata, Presenza, StatoPresenza, EsitoCorso } from '@/lib/database.types'
 
 // Colore brand-700 (#262a5a) usato per bordi/testi in evidenza sui documenti.
 const BRAND: [number, number, number] = [38, 42, 90]
@@ -298,6 +298,62 @@ export function reportPresenzeCsv(opts: ReportPresenzeOpts): void {
     })),
   ]
   scaricaCsv(`presenze-${nomeFileCorso(opts.corso.titolo)}`, opts.atleti, colonne)
+}
+
+// --- DPA firmato ------------------------------------------------------------
+
+/**
+ * Genera il PDF del DPA firmato: il testo (già compilato con i dati della ASD)
+ * su formato A4, seguito dal blocco di accettazione con firmatario, data e versione.
+ */
+export function scaricaDpaPdf(opts: { testoCompilato: string; acc: AccettazioneDpa }): void {
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' })
+  const margine = 18
+  const larghezza = doc.internal.pageSize.getWidth() - margine * 2
+  const fondo = 282
+  let y = margine
+
+  const scrivi = (testo: string, grassetto = false) => {
+    doc.setFont('helvetica', grassetto ? 'bold' : 'normal')
+    const linee = doc.splitTextToSize(testo === '' ? ' ' : testo, larghezza)
+    for (const l of linee) {
+      if (y > fondo) {
+        doc.addPage()
+        y = margine
+      }
+      doc.text(l, margine, y)
+      y += 5
+    }
+  }
+
+  doc.setFontSize(10)
+  for (const paragrafo of opts.testoCompilato.split('\n')) scrivi(paragrafo)
+
+  // Blocco di accettazione.
+  if (y > fondo - 40) {
+    doc.addPage()
+    y = margine
+  }
+  y += 6
+  doc.setDrawColor(...GRIGIO)
+  doc.line(margine, y, margine + larghezza, y)
+  y += 8
+  scrivi('ACCETTAZIONE', true)
+  const acc = opts.acc
+  const dataTxt = (() => {
+    try {
+      return new Date(acc.accettato_il).toLocaleString('it-IT')
+    } catch {
+      return acc.accettato_il
+    }
+  })()
+  scrivi(`Firmatario: ${acc.firmatario_nome}${acc.firmatario_ruolo ? ` — ${acc.firmatario_ruolo}` : ''}`)
+  if (acc.denominazione) scrivi(`Per conto di: ${acc.denominazione}`)
+  scrivi(`Data di accettazione: ${dataTxt}`)
+  scrivi(`Versione del documento: ${acc.versione}`)
+  scrivi('Accettazione registrata elettronicamente tramite la piattaforma IstruttoriCSAIn.')
+
+  doc.save('dpa-firmato.pdf')
 }
 
 /** Normalizza il titolo del corso per usarlo come nome file. */

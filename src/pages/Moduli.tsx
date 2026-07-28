@@ -1,6 +1,6 @@
 import { useMemo, useState, type FormEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ClipboardList, FilePlus2, Send, PenLine, X } from 'lucide-react'
+import { ClipboardList, FilePlus2, Send, PenLine, X, Download } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/components/Toast'
 import {
@@ -10,6 +10,8 @@ import {
   creaModuloCompilato,
   cambiaStatoModulo,
 } from '@/api/moduli'
+import { getDpa, accettazioneCorrente, compilaTestoDpa } from '@/api/dpa'
+import { scaricaDpaPdf } from '@/lib/pdf'
 import { listaMembri } from '@/api/utenti'
 import { messaggioErrore } from '@/api/errors'
 import {
@@ -23,7 +25,7 @@ import {
   PageLoader,
   Alert,
 } from '@/components/ui'
-import { STATO_MODULO_LABEL, formatData, nomeCompleto } from '@/lib/format'
+import { STATO_MODULO_LABEL, formatData, formatDataOra, nomeCompleto } from '@/lib/format'
 import type {
   CampoModulo,
   ModelloModulo,
@@ -66,6 +68,8 @@ export default function Moduli() {
   return (
     <div>
       <PageHeader titolo="Modulistica" sottotitolo={asd?.nome} />
+
+      {isStaff && asd && <CardDpa asdId={asd.id} />}
 
       <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-400">
         Moduli disponibili
@@ -252,5 +256,45 @@ function ModalCompila({
         </div>
       </form>
     </Modal>
+  )
+}
+
+function CardDpa({ asdId }: { asdId: string }) {
+  const dpa = useQuery({ queryKey: ['dpa'], queryFn: getDpa })
+  const acc = useQuery({
+    queryKey: ['dpa-acc', asdId, dpa.data?.versione],
+    queryFn: () => accettazioneCorrente(asdId, dpa.data!.versione),
+    enabled: !!dpa.data,
+  })
+
+  if (!dpa.data?.testo) return null
+  const a = acc.data ?? null
+
+  return (
+    <Card className="mb-6 p-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="font-semibold text-slate-900">Accordo sul trattamento dei dati (DPA)</h2>
+          {a ? (
+            <p className="mt-1 text-sm text-slate-500">
+              Firmato il {formatDataOra(a.accettato_il)} da {a.firmatario_nome}
+              {a.firmatario_ruolo ? ` (${a.firmatario_ruolo})` : ''} · versione {a.versione}
+            </p>
+          ) : (
+            <p className="mt-1 text-sm text-amber-700">Da firmare da un amministratore.</p>
+          )}
+        </div>
+        {a && (
+          <button
+            className="btn-secondary"
+            onClick={() =>
+              scaricaDpaPdf({ testoCompilato: compilaTestoDpa(dpa.data!.testo!, a), acc: a })
+            }
+          >
+            <Download className="h-4 w-4" /> Scarica PDF firmato
+          </button>
+        )}
+      </div>
+    </Card>
   )
 }

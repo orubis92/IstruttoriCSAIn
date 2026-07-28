@@ -205,6 +205,32 @@ select test.verifica('un amministratore NON vede la vista di piattaforma (ASD)',
 select test.vietato('un amministratore non puo registrare una consultazione di piattaforma',
   $$select registra_consultazione_piattaforma()$$);
 
+
+\echo ''
+\echo '== 18. Accordo trattamento dati (DPA) =='
+
+set request.jwt.claim.sub = 'a0000000-0000-4000-8000-000000000002';   -- amministratrice Alfa
+select test.permesso('un amministratore firma il DPA per la propria ASD',
+  $$insert into accettazioni_dpa (asd_id, versione, accettato_da, firmatario_nome)
+    values ('a5d0a5d0-0000-4000-8000-00000000000a', 1, 'c0000000-0000-4000-8000-000000000002', 'Anna Rossi')$$);
+select test.vietato('non si puo firmare a nome di un altro utente',
+  $$insert into accettazioni_dpa (asd_id, versione, accettato_da, firmatario_nome)
+    values ('a5d0a5d0-0000-4000-8000-00000000000a', 3, 'c0000000-0000-4000-8000-000000000004', 'Tizio')$$);
+
+set request.jwt.claim.sub = 'a0000000-0000-4000-8000-000000000004';   -- istruttore Alfa
+select test.vietato('un istruttore non puo firmare il DPA',
+  $$insert into accettazioni_dpa (asd_id, versione, accettato_da, firmatario_nome)
+    values ('a5d0a5d0-0000-4000-8000-00000000000a', 2, 'c0000000-0000-4000-8000-000000000004', 'Carlo Verdi')$$);
+select test.verifica('lo staff Alfa vede l''accettazione DPA della propria ASD',
+  $$select count(*)::int from accettazioni_dpa where asd_id = 'a5d0a5d0-0000-4000-8000-00000000000a'$$, 1);
+
+set request.jwt.claim.sub = 'a0000000-0000-4000-8000-000000000007';   -- amministratore ASD Beta
+select test.vietato('un amministratore di un''altra ASD non puo firmare per la ASD Alfa',
+  $$insert into accettazioni_dpa (asd_id, versione, accettato_da, firmatario_nome)
+    values ('a5d0a5d0-0000-4000-8000-00000000000a', 4, 'c0000000-0000-4000-8000-000000000007', 'Fabio Blu')$$);
+select test.verifica('un''altra ASD non vede l''accettazione DPA della ASD Alfa',
+  $$select count(*)::int from accettazioni_dpa where asd_id = 'a5d0a5d0-0000-4000-8000-00000000000a'$$, 0);
+
 reset role;
 \echo ''
 \echo '=============================================='

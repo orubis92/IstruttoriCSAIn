@@ -288,6 +288,27 @@ export interface ProgrammatoreAsd {
   n_staff: number
 }
 
+/** Testo e versione del DPA (accordo trattamento dati), gestiti dai programmatori. */
+export interface Dpa {
+  testo: string | null
+  versione: number
+}
+
+/** Registro dell'accettazione del DPA da parte di una ASD. */
+export interface AccettazioneDpa {
+  asd_id: string
+  versione: number
+  accettato_da: string | null
+  firmatario_nome: string
+  firmatario_ruolo: string | null
+  denominazione: string | null
+  codice_fiscale: string | null
+  sede: string | null
+  legale_rappresentante: string | null
+  foro: string | null
+  accettato_il: string
+}
+
 export type StatoCertificato = 'ASSENTE' | 'SCADUTO' | 'IN_SCADENZA' | 'VALIDO'
 
 /** Riga della vista v_certificati_atleti: stato del certificato più recente. */

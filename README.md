@@ -144,6 +144,18 @@ senza aumentare la versione. Se un domani modifichi l'informativa DOPO averla
 pubblicata e fatta accettare, ricordati di aumentare `privacy_versione` così gli
 utenti riprestano il consenso.
 
+### Accordo trattamento dati (DPA) firmato da ogni ASD (obbligatorio per quella funzione)
+
+Esegui `sql/18_dpa.sql` (dopo 00, 01, 08): aggiunge il testo/versione del DPA
+(gestito dai programmatori) e il registro immutabile delle accettazioni per ASD.
+Al primo accesso, un **amministratore** di ogni ASD deve compilare i dati della
+propria ASD e accettare il DPA tramite una schermata bloccante; finché non è
+firmato, l'ASD non può usare l'app. Lo stato e il PDF del documento firmato sono
+disponibili nella sezione **Modulistica**. Il testo di default contiene segnaposto
+`[•_ASD]`/`[FORO]` compilati dalla ASD in fase di firma; i dati del **responsabile**
+(gestore) vanno completati nel testo (`impostazioni_piattaforma.dpa_testo`). È
+ri-eseguibile. Il modello va comunque validato da un riferimento legale/privacy.
+
 ### Monitoraggio errori (facoltativo)
 
 Imposta `VITE_SENTRY_DSN` (Vercel + `.env`) con il DSN di un progetto Sentry per
