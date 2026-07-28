@@ -234,10 +234,9 @@ function CardNotifiche({ utenteId }: { utenteId: string }) {
           <div>
             <p className="label">Canali</p>
             <div className="space-y-2">
-              <label className="flex items-center gap-2 text-sm text-slate-700">
-                <input type="checkbox" checked={viaEmail} onChange={(e) => setViaEmail(e.target.checked)} />
-                Email
-              </label>
+              {/* Notifiche email temporaneamente disattivate: mostriamo solo il push.
+                  La preferenza via_email resta salvata a database e si può riattivare
+                  ripristinando questa spunta quando il canale email sarà configurato. */}
               <label className="flex items-center gap-2 text-sm text-slate-700">
                 <input type="checkbox" checked={viaPush} onChange={(e) => setViaPush(e.target.checked)} />
                 Notifiche push sul dispositivo

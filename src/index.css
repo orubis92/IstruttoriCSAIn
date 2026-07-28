@@ -6,8 +6,19 @@
   html {
     -webkit-tap-highlight-color: transparent;
   }
+  /* Nessuna parte dell'interfaccia deve poter "uscire" dallo schermo:
+     blocchiamo lo scorrimento orizzontale a livello di pagina e mandiamo
+     a capo le parole molto lunghe (email, codici) invece di allargare il layout.
+     Le tabelle/righe che devono scorrere hanno un loro contenitore overflow-x. */
+  html,
+  body {
+    max-width: 100%;
+    overflow-x: hidden;
+    overscroll-behavior-x: none;
+  }
   body {
     @apply bg-slate-50 text-slate-800 antialiased;
+    overflow-wrap: break-word;
   }
 }
 

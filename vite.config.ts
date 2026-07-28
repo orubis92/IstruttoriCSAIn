@@ -19,7 +19,7 @@ export default defineConfig({
         name: 'IstruttoriCSAIn — Gestione corsi ASD',
         short_name: 'IstruttoriCSAIn',
         description: 'Gestione dei corsi di tiro con l\'arco per le ASD affiliate CSAIN',
-        theme_color: '#0f766e',
+        theme_color: '#202048',
         background_color: '#f8fafc',
         display: 'standalone',
         start_url: '/',

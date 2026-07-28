@@ -70,16 +70,16 @@ export default function Layout() {
       <GateConsensoPrivacy />
       {/* Sidebar desktop */}
       <aside className="hidden w-60 shrink-0 flex-col border-r border-slate-200 bg-white md:flex">
-        <div className="flex items-center gap-2 px-5 py-5">
-          {logoCsain && <img src={logoCsain} alt="CSAIN" className="h-8 w-8 object-contain" />}
+        <div className="flex min-w-0 items-center gap-2 px-5 py-5">
+          {logoCsain && <img src={logoCsain} alt="CSAIN" className="h-8 w-8 shrink-0 object-contain" />}
           {asd?.logo ? (
-            <img src={asd.logo} alt="Logo" className="h-8 w-8 rounded object-contain" />
+            <img src={asd.logo} alt="Logo" className="h-8 w-8 shrink-0 rounded object-contain" />
           ) : (
-            <Target className="h-7 w-7 text-brand-700" />
+            <Target className="h-7 w-7 shrink-0 text-brand-700" />
           )}
-          <div className="leading-tight">
-            <p className="text-sm font-bold text-slate-900">{asd?.nome ?? 'IstruttoriCSAIn'}</p>
-            <p className="text-xs text-slate-400">Gestione corsi ASD</p>
+          <div className="min-w-0 leading-tight">
+            <p className="truncate text-sm font-bold text-slate-900">{asd?.nome ?? 'IstruttoriCSAIn'}</p>
+            <p className="truncate text-xs text-slate-400">Gestione corsi ASD</p>
           </div>
         </div>
         <nav className="flex-1 space-y-1 px-3 py-2">
@@ -111,21 +111,21 @@ export default function Layout() {
       {/* Colonna principale */}
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Top bar */}
-        <header className="sticky top-0 z-30 flex items-center justify-between border-b border-slate-200 bg-white/90 px-4 py-3 backdrop-blur md:px-6">
-          <div className="flex items-center gap-2 md:hidden">
-            {logoCsain && <img src={logoCsain} alt="CSAIN" className="h-7 w-7 object-contain" />}
+        <header className="sticky top-0 z-30 flex items-center justify-between gap-2 border-b border-slate-200 bg-white/90 px-4 py-3 backdrop-blur md:px-6">
+          <div className="flex min-w-0 items-center gap-2 md:hidden">
+            {logoCsain && <img src={logoCsain} alt="CSAIN" className="h-7 w-7 shrink-0 object-contain" />}
             {asd?.logo ? (
-              <img src={asd.logo} alt="Logo" className="h-7 w-7 rounded object-contain" />
+              <img src={asd.logo} alt="Logo" className="h-7 w-7 shrink-0 rounded object-contain" />
             ) : (
-              <Target className="h-6 w-6 text-brand-700" />
+              <Target className="h-6 w-6 shrink-0 text-brand-700" />
             )}
             <span className="truncate font-bold text-slate-900">{asd?.nome ?? 'IstruttoriCSAIn'}</span>
           </div>
-          <div className="hidden md:block">
-            <p className="text-sm text-slate-400">{asd?.nome ?? 'Area piattaforma'}</p>
+          <div className="hidden min-w-0 md:block">
+            <p className="truncate text-sm text-slate-400">{asd?.nome ?? 'Area piattaforma'}</p>
           </div>
 
-          <div className="flex items-center gap-1">
+          <div className="flex shrink-0 items-center gap-1">
           <NotificheBell />
           <Link to="/impostazioni" className="icon-btn" aria-label="Impostazioni" title="Impostazioni">
             <Settings className="h-5 w-5" />
@@ -176,21 +176,27 @@ export default function Layout() {
           <Outlet />
         </main>
 
-        {/* Bottom nav mobile */}
-        <nav className="fixed inset-x-0 bottom-0 z-30 flex overflow-x-auto border-t border-slate-200 bg-white md:hidden">
+        {/* Bottom nav mobile: tutte le voci si adattano alla larghezza dello
+            schermo (flex-1 + min-w-0), così nessun pulsante finisce fuori scena.
+            L'etichetta si accorcia con i puntini se lo spazio è pochissimo.
+            Il padding inferiore rispetta la "safe area" (notch/barra iPhone). */}
+        <nav
+          className="fixed inset-x-0 bottom-0 z-30 flex border-t border-slate-200 bg-white md:hidden"
+          style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+        >
           {voci.map((v) => (
             <NavLink
               key={v.to}
               to={v.to}
               end={v.to === '/'}
               className={({ isActive }) =>
-                `tabbar-item flex min-w-[3.9rem] flex-1 flex-col items-center gap-0.5 py-2 text-[11px] ${
+                `tabbar-item flex min-w-0 flex-1 flex-col items-center gap-0.5 px-0.5 py-2 text-[10px] leading-tight ${
                   isActive ? 'text-brand-700' : 'text-slate-400'
                 }`
               }
             >
-              <v.icona className="h-5 w-5" />
-              {v.label}
+              <v.icona className="h-5 w-5 shrink-0" />
+              <span className="max-w-full truncate">{v.label}</span>
             </NavLink>
           ))}
         </nav>
