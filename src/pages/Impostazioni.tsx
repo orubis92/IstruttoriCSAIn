@@ -6,6 +6,7 @@ import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/components/Toast'
 import { aggiornaAsd } from '@/api/asd'
 import { getLogoCsain, aggiornaLogoCsain, getPrivacy, aggiornaPrivacy } from '@/api/piattaforma'
+import { getDpa, aggiornaDpa } from '@/api/dpa'
 import { messaggioErrore } from '@/api/errors'
 import { Card, PageHeader, Field, Spinner, Alert } from '@/components/ui'
 
@@ -93,6 +94,7 @@ export default function Impostazioni() {
             <CardRegistroAccessi />
             <SezioneLogoCsain />
             <SezionePrivacy />
+            <SezioneDpa />
           </div>
         ) : (
           <Alert tono="blu">
@@ -117,6 +119,7 @@ export default function Impostazioni() {
           <div className="space-y-4 lg:col-span-2">
             <SezioneLogoCsain />
             <SezionePrivacy />
+            <SezioneDpa />
           </div>
         )}
         {/* Logo */}
@@ -357,6 +360,71 @@ function SezionePrivacy() {
           </label>
           <button className="btn-primary" onClick={() => salva.mutate()} disabled={salva.isPending}>
             {salva.isPending && <Spinner className="h-4 w-4" />} Salva informativa
+          </button>
+        </div>
+      )}
+    </Card>
+  )
+}
+
+function SezioneDpa() {
+  const toast = useToast()
+  const qc = useQueryClient()
+  const q = useQuery({ queryKey: ['dpa'], queryFn: getDpa })
+  const [testo, setTesto] = useState('')
+  const [nuovaVersione, setNuovaVersione] = useState(false)
+
+  useEffect(() => {
+    if (q.data) setTesto(q.data.testo ?? '')
+  }, [q.data])
+
+  const salva = useMutation({
+    mutationFn: () => {
+      const versione = (q.data?.versione ?? 1) + (nuovaVersione ? 1 : 0)
+      return aggiornaDpa(testo, versione)
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['dpa'] })
+      qc.invalidateQueries({ queryKey: ['dpa-acc'] })
+      setNuovaVersione(false)
+      toast.successo('DPA aggiornato.')
+    },
+    onError: (e) => toast.errore(messaggioErrore(e)),
+  })
+
+  return (
+    <Card className="p-5">
+      <h2 className="mb-1 font-semibold text-slate-900">Accordo trattamento dati (DPA)</h2>
+      <p className="mb-3 text-sm text-slate-500">
+        Testo che ogni ASD deve accettare al primo accesso. Completa qui i dati del{' '}
+        <b>responsabile</b> (il gestore della piattaforma). I segnaposto compilati dalla ASD in
+        fase di firma sono: <code>[DENOMINAZIONE_ASD]</code>, <code>[CF_ASD]</code>,{' '}
+        <code>[SEDE_ASD]</code>, <code>[LEGALE_RAPP_ASD]</code>, <code>[FORO]</code>. Versione
+        attuale: <b>{q.data?.versione ?? '—'}</b>.
+      </p>
+      {q.isLoading ? (
+        <Spinner className="h-5 w-5 text-brand-600" />
+      ) : (
+        <div className="space-y-3">
+          <textarea
+            className="input min-h-[260px] font-mono text-xs"
+            value={testo}
+            onChange={(e) => setTesto(e.target.value)}
+          />
+          <label className="flex items-start gap-2 text-sm text-slate-700">
+            <input
+              type="checkbox"
+              className="mt-1"
+              checked={nuovaVersione}
+              onChange={(e) => setNuovaVersione(e.target.checked)}
+            />
+            <span>
+              Pubblica come <b>nuova versione</b>: tutte le ASD dovranno firmare di nuovo il DPA al
+              prossimo accesso. (Lascia deselezionato per correzioni minori.)
+            </span>
+          </label>
+          <button className="btn-primary" onClick={() => salva.mutate()} disabled={salva.isPending}>
+            {salva.isPending && <Spinner className="h-4 w-4" />} Salva DPA
           </button>
         </div>
       )}
