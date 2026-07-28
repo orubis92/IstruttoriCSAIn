@@ -1,14 +1,25 @@
 import { supabase } from '@/lib/supabase'
-import type { CertificatoMedico, TipoCertificato } from '@/lib/database.types'
+import type { CertificatoMedico, CertificatoStato, TipoCertificato } from '@/lib/database.types'
 
+/**
+ * Legge i certificati di un atleta passando dalla RPC dedicata: quando a leggere
+ * è un membro dello staff (non l'atleta stesso), l'accesso ai dati sanitari viene
+ * registrato nel registro accessi (art. 9 GDPR).
+ */
 export async function certificatiAtleta(atletaId: string): Promise<CertificatoMedico[]> {
-  const { data, error } = await supabase
-    .from('certificati_medici')
-    .select('*')
-    .eq('atleta_id', atletaId)
-    .order('data_scadenza', { ascending: false })
+  const { data, error } = await supabase.rpc('leggi_certificati_atleta', { p_atleta: atletaId })
   if (error) throw error
   return (data as CertificatoMedico[]) ?? []
+}
+
+/** Stato del certificato più recente per gli atleti visibili (vista v_certificati_atleti). */
+export async function statoCertificati(): Promise<CertificatoStato[]> {
+  const { data, error } = await supabase
+    .from('v_certificati_atleti')
+    .select('*')
+    .order('data_scadenza', { ascending: true, nullsFirst: false })
+  if (error) throw error
+  return (data as CertificatoStato[]) ?? []
 }
 
 export async function mieiCertificati(): Promise<CertificatoMedico[]> {

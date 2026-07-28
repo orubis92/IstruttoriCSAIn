@@ -1,6 +1,7 @@
-import { useState, type ChangeEvent, type FormEvent } from 'react'
+import { useState, useEffect, type ChangeEvent, type FormEvent } from 'react'
+import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ImagePlus, Trash2 } from 'lucide-react'
+import { ImagePlus, Trash2, ShieldCheck, ChevronRight } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/components/Toast'
 import { aggiornaAsd } from '@/api/asd'
@@ -89,6 +90,7 @@ export default function Impostazioni() {
         <PageHeader titolo="Impostazioni" sottotitolo={isProgrammatore ? 'Piattaforma' : undefined} />
         {isProgrammatore ? (
           <div className="space-y-4">
+            <CardRegistroAccessi />
             <SezioneLogoCsain />
             <SezionePrivacy />
           </div>
@@ -106,6 +108,11 @@ export default function Impostazioni() {
       <PageHeader titolo="Impostazioni" sottotitolo={asd.nome} />
 
       <div className="grid gap-4 lg:grid-cols-2">
+        {(isAdmin || isProgrammatore) && (
+          <div className="lg:col-span-2">
+            <CardRegistroAccessi />
+          </div>
+        )}
         {isProgrammatore && (
           <div className="space-y-4 lg:col-span-2">
             <SezioneLogoCsain />
@@ -204,6 +211,25 @@ export default function Impostazioni() {
         </Card>
       </div>
     </div>
+  )
+}
+
+function CardRegistroAccessi() {
+  return (
+    <Link to="/registro-accessi" className="block">
+      <Card className="flex items-center gap-4 p-5 transition-shadow hover:shadow-md">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-100 text-brand-700">
+          <ShieldCheck className="h-6 w-6" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <h2 className="font-semibold text-slate-900">Registro accessi ai dati sanitari</h2>
+          <p className="text-sm text-slate-500">
+            Consulta lo storico degli accessi ai certificati medici degli atleti (art. 9 GDPR).
+          </p>
+        </div>
+        <ChevronRight className="h-5 w-5 shrink-0 text-slate-400" />
+      </Card>
+    </Link>
   )
 }
 

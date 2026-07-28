@@ -75,6 +75,28 @@ export const TIPO_DOCUMENTO_LABEL: Record<TipoDocumento, string> = {
   REGOLAMENTO: 'Regolamento',
 }
 
+/** True se la data di nascita indica una persona minorenne (compie 18 anni dopo oggi). */
+export function eMinorenne(dataNascita: string | null | undefined): boolean {
+  if (!dataNascita) return false
+  try {
+    const d = parseISO(dataNascita)
+    const diciottesimo = new Date(d.getFullYear() + 18, d.getMonth(), d.getDate())
+    return diciottesimo > new Date()
+  } catch {
+    return false
+  }
+}
+
+export const STATO_CERTIFICATO_LABEL: Record<
+  'ASSENTE' | 'SCADUTO' | 'IN_SCADENZA' | 'VALIDO',
+  string
+> = {
+  ASSENTE: 'Nessun certificato',
+  SCADUTO: 'Scaduto',
+  IN_SCADENZA: 'In scadenza',
+  VALIDO: 'Valido',
+}
+
 export function nomeCompleto(u: { nome: string; cognome: string } | null | undefined): string {
   if (!u) return '—'
   return `${u.nome} ${u.cognome}`.trim()

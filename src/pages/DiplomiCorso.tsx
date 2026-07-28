@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { Link, Navigate, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowLeft, Printer, Target } from 'lucide-react'
+import { ArrowLeft, Download, Printer, Target } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import {
   getCorso,
@@ -14,6 +14,7 @@ import { listaMembri } from '@/api/utenti'
 import { getLogoCsain } from '@/api/piattaforma'
 import { PageLoader } from '@/components/ui'
 import { formatData, nomeCompleto } from '@/lib/format'
+import { scaricaDiplomiPdf } from '@/lib/pdf'
 import type { Utente } from '@/lib/database.types'
 
 export default function DiplomiCorso() {
@@ -56,6 +57,27 @@ export default function DiplomiCorso() {
       ),
     )
 
+  // Genera il PDF dei diplomi con i dati già caricati nella pagina.
+  const scaricaPdf = () =>
+    scaricaDiplomiPdf({
+      corso: { titolo: c.titolo, data_inizio: c.data_inizio },
+      asdNome: asd?.nome ?? 'ASD',
+      asdLogo: asd?.logo ?? null,
+      logoCsain: logoCsain ?? null,
+      giornate: giornate.data ?? [],
+      presenze: presenze.data ?? [],
+      istruttori: (istruttori.data ?? []).map((it) => ({
+        nomeCompleto: nomeCompleto(mappaMembri.get(it.istruttore_id)),
+        firma: it.firma,
+      })),
+      atleti: partecipanti.map((iscr) => ({
+        atletaId: iscr.atleta_id,
+        nomeCompleto: nomeCompleto(mappaMembri.get(iscr.atleta_id)),
+        esito: iscr.esito,
+        valutazione: iscr.valutazione,
+      })),
+    })
+
   return (
     <div className="min-h-screen bg-slate-100 py-6">
       {/* Barra strumenti — nascosta in stampa */}
@@ -63,9 +85,14 @@ export default function DiplomiCorso() {
         <Link to={`/corsi/${id}`} className="inline-flex items-center gap-1 text-sm text-slate-600 hover:text-slate-800">
           <ArrowLeft className="h-4 w-4" /> Torna al corso
         </Link>
-        <button className="btn-primary" onClick={() => window.print()}>
-          <Printer className="h-4 w-4" /> Stampa diplomi
-        </button>
+        <div className="flex gap-2">
+          <button className="btn-secondary" onClick={scaricaPdf} disabled={partecipanti.length === 0}>
+            <Download className="h-4 w-4" /> Scarica PDF
+          </button>
+          <button className="btn-primary" onClick={() => window.print()}>
+            <Printer className="h-4 w-4" /> Stampa diplomi
+          </button>
+        </div>
       </div>
 
       {partecipanti.length === 0 && (

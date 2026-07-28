@@ -6,6 +6,7 @@ import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/components/Toast'
 import { getPrivacy, haConsensoPrivacy, registraConsensoPrivacy } from '@/api/piattaforma'
 import { messaggioErrore } from '@/api/errors'
+import { eMinorenne } from '@/lib/format'
 import { Spinner } from '@/components/ui'
 
 /**
@@ -17,6 +18,10 @@ export function GateConsensoPrivacy() {
   const { profilo } = useAuth()
   const toast = useToast()
   const [accetta, setAccetta] = useState(false)
+  const [firmatario, setFirmatario] = useState('')
+  const [relazione, setRelazione] = useState('Genitore')
+
+  const minore = eMinorenne(profilo?.data_nascita)
 
   const privacy = useQuery({ queryKey: ['privacy'], queryFn: getPrivacy })
   const consenso = useQuery({
@@ -26,7 +31,14 @@ export function GateConsensoPrivacy() {
   })
 
   const registra = useMutation({
-    mutationFn: () => registraConsensoPrivacy(profilo!.id, privacy.data!.versione),
+    mutationFn: () =>
+      registraConsensoPrivacy(
+        profilo!.id,
+        privacy.data!.versione,
+        minore
+          ? { perMinore: true, firmatarioNome: firmatario, firmatarioRelazione: relazione }
+          : undefined,
+      ),
     onSuccess: () => consenso.refetch(),
     onError: (e) => toast.errore(messaggioErrore(e)),
   })
@@ -53,6 +65,32 @@ export function GateConsensoPrivacy() {
         </div>
 
         <div className="space-y-3 border-t border-slate-200 px-5 py-4">
+          {minore && (
+            <div className="space-y-2 rounded-lg border border-blue-200 bg-blue-50/60 p-3">
+              <p className="text-sm font-medium text-blue-900">Consenso per un minorenne</p>
+              <p className="text-xs text-blue-700">
+                Il consenso deve essere prestato da chi esercita la responsabilità genitoriale.
+                Indica il tuo nominativo.
+              </p>
+              <div className="flex gap-2">
+                <input
+                  className="input flex-1"
+                  placeholder="Nome e cognome di chi presta il consenso"
+                  value={firmatario}
+                  onChange={(e) => setFirmatario(e.target.value)}
+                />
+                <select
+                  className="input w-32"
+                  value={relazione}
+                  onChange={(e) => setRelazione(e.target.value)}
+                >
+                  <option>Genitore</option>
+                  <option>Tutore</option>
+                  <option>Affidatario</option>
+                </select>
+              </div>
+            </div>
+          )}
           <label className="flex items-start gap-2 text-sm text-slate-700">
             <input
               type="checkbox"
@@ -60,11 +98,15 @@ export function GateConsensoPrivacy() {
               checked={accetta}
               onChange={(e) => setAccetta(e.target.checked)}
             />
-            <span>Ho letto e accetto l'informativa sul trattamento dei dati personali.</span>
+            <span>
+              {minore
+                ? "In qualità di genitore/tutore ho letto e accetto l'informativa sul trattamento dei dati personali del minore."
+                : "Ho letto e accetto l'informativa sul trattamento dei dati personali."}
+            </span>
           </label>
           <button
             className="btn-primary w-full"
-            disabled={!accetta || registra.isPending}
+            disabled={!accetta || registra.isPending || (minore && !firmatario.trim())}
             onClick={() => registra.mutate()}
           >
             {registra.isPending && <Spinner className="h-4 w-4" />} Accetta e continua

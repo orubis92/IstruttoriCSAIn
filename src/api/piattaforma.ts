@@ -57,9 +57,23 @@ export async function haConsensoPrivacy(utenteId: string, versione: number): Pro
   return !!data
 }
 
-export async function registraConsensoPrivacy(utenteId: string, versione: number): Promise<void> {
-  const { error } = await supabase
-    .from('consensi_privacy')
-    .insert({ utente_id: utenteId, versione })
+export interface ConsensoMinore {
+  perMinore?: boolean
+  firmatarioNome?: string | null
+  firmatarioRelazione?: string | null
+}
+
+export async function registraConsensoPrivacy(
+  utenteId: string,
+  versione: number,
+  minore?: ConsensoMinore,
+): Promise<void> {
+  const { error } = await supabase.from('consensi_privacy').insert({
+    utente_id: utenteId,
+    versione,
+    per_minore: minore?.perMinore ?? false,
+    firmatario_nome: minore?.firmatarioNome || null,
+    firmatario_relazione: minore?.firmatarioRelazione || null,
+  })
   if (error) throw error
 }

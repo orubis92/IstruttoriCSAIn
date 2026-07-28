@@ -49,11 +49,16 @@ Deno.serve(async (req) => {
     return new Response('Non autorizzato', { status: 401 })
   }
 
-  // 1) genera i promemoria dovuti
+  // 1) genera i promemoria dovuti e gli avvisi sui certificati in scadenza/scaduti
   try {
     await supabase.rpc('accoda_promemoria')
   } catch (_) {
     // se fallisce, proseguiamo comunque a svuotare la coda esistente
+  }
+  try {
+    await supabase.rpc('accoda_avvisi_certificati')
+  } catch (_) {
+    // idem: non blocca lo svuotamento della coda
   }
 
   // 2) svuota la coda

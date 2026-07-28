@@ -16,7 +16,17 @@ export async function getUtente(id: string): Promise<Utente | null> {
   return (data as Utente) ?? null
 }
 
-export interface NuovoUtenteInput {
+/** Dati del genitore/tutore, per gli atleti minorenni. */
+export interface GenitoreInput {
+  genitoreNome?: string | null
+  genitoreCognome?: string | null
+  genitoreCodiceFiscale?: string | null
+  genitoreEmail?: string | null
+  genitoreTelefono?: string | null
+  genitoreRelazione?: string | null
+}
+
+export interface NuovoUtenteInput extends GenitoreInput {
   ruolo: RuoloUtente
   asdId: string
   nome: string
@@ -27,6 +37,17 @@ export interface NuovoUtenteInput {
   email?: string | null
   telefono?: string | null
   creatoDa?: string | null
+}
+
+function campiGenitore(input: GenitoreInput) {
+  return {
+    genitore_nome: input.genitoreNome || null,
+    genitore_cognome: input.genitoreCognome || null,
+    genitore_codice_fiscale: input.genitoreCodiceFiscale || null,
+    genitore_email: input.genitoreEmail || null,
+    genitore_telefono: input.genitoreTelefono || null,
+    genitore_relazione: input.genitoreRelazione || null,
+  }
 }
 
 /**
@@ -47,6 +68,7 @@ export async function creaUtente(input: NuovoUtenteInput): Promise<Utente> {
       email: input.email || null,
       telefono: input.telefono || null,
       creato_da: input.creatoDa || null,
+      ...campiGenitore(input),
     })
     .select('*')
     .single()
@@ -54,10 +76,27 @@ export async function creaUtente(input: NuovoUtenteInput): Promise<Utente> {
   return data as Utente
 }
 
-/** Aggiorna i recapiti/anagrafica non sensibili. */
+/** Aggiorna i recapiti/anagrafica non sensibili (compresi i dati del genitore). */
 export async function aggiornaUtente(
   id: string,
-  patch: Partial<Pick<Utente, 'nome' | 'cognome' | 'data_nascita' | 'email' | 'telefono' | 'ruolo' | 'attivo'>>,
+  patch: Partial<
+    Pick<
+      Utente,
+      | 'nome'
+      | 'cognome'
+      | 'data_nascita'
+      | 'email'
+      | 'telefono'
+      | 'ruolo'
+      | 'attivo'
+      | 'genitore_nome'
+      | 'genitore_cognome'
+      | 'genitore_codice_fiscale'
+      | 'genitore_email'
+      | 'genitore_telefono'
+      | 'genitore_relazione'
+    >
+  >,
 ): Promise<void> {
   const { error } = await supabase.from('utenti').update(patch).eq('id', id)
   if (error) throw error

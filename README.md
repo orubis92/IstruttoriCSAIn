@@ -85,6 +85,46 @@ notifiche, le iscrizioni push e la generazione dei promemoria. L'invio vero
 (Resend) e uno scheduler (pg_cron). **Segui la guida `NOTIFICHE_SETUP.md`** per
 tutti i passaggi. La funzione Edge è in `supabase/functions/invia-notifiche/`.
 
+### Certificati medici: avvisi e blocco (obbligatorio per quella funzione)
+
+Esegui `sql/12_certificati_avvisi.sql` (dopo 00, 01, 05, 09, 11): aggiunge la
+verifica di validità del certificato, la vista `v_certificati_atleti` con lo
+stato (assente/scaduto/in scadenza/valido) e la funzione `accoda_avvisi_certificati`
+che mette in coda un avviso push/email quando un certificato è scaduto o scade
+entro 30 giorni. Nel cruscotto lo staff vede un riquadro con i certificati da
+controllare; in «Membri» e negli iscritti a un corso compare un badge di stato.
+È ri-eseguibile.
+
+### Gestione dei minori (obbligatorio per quella funzione)
+
+Esegui `sql/13_minori.sql` (dopo 00, 01, 10): aggiunge i dati del genitore/tutore
+sull'anagrafica dell'atleta e i campi per registrare il consenso privacy prestato
+per conto di un minore. Nei form di «Membri» i campi del genitore compaiono
+automaticamente quando la data di nascita indica un minorenne; al primo accesso,
+per un utente minorenne, l'informativa chiede il nominativo di chi presta il
+consenso. È ri-eseguibile.
+
+### Registro accessi ai dati sanitari — art. 9 GDPR (obbligatorio per quella funzione)
+
+Esegui `sql/14_audit_art9.sql` (dopo 00, 01, 05): aggiunge il registro degli
+accessi ai certificati medici. Le scritture sono tracciate da un trigger; le
+letture dello staff sui dati di un altro atleta passano dalla RPC
+`leggi_certificati_atleta`, che registra l'accesso. Il registro è consultabile
+da «Impostazioni → Registro accessi ai dati sanitari» (solo amministratori e
+programmatori). È ri-eseguibile.
+
+### Monitoraggio errori (facoltativo)
+
+Imposta `VITE_SENTRY_DSN` (Vercel + `.env`) con il DSN di un progetto Sentry per
+inviare gli errori di produzione. Senza DSN l'app funziona normalmente e non
+invia nulla. Il DSN è pubblico per natura, come la chiave anon.
+
+### Export e PDF
+
+Da «Membri» si esporta l'elenco in CSV; da un corso si scaricano il **report
+presenze** (PDF e CSV) e i **diplomi in PDF** (oltre alla stampa). Non serve
+alcuna configurazione.
+
 ### Dati di base (opzionale ma consigliato)
 
 Dopo aver applicato i file `sql/00`, `01`, `02`, esegui anche `sql/03_seed.sql`

@@ -14,6 +14,8 @@ import {
   MessageSquare,
   Printer,
   GraduationCap,
+  Download,
+  FileText,
 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/components/Toast'
@@ -36,7 +38,9 @@ import {
   aggiungiIstruttoreCorso,
   aggiornaFirmaIstruttore,
   rimuoviIstruttoreCorso,
+  presenzeDelCorso,
 } from '@/api/corsi'
+import { statoCertificati } from '@/api/certificati'
 import { listaMembri } from '@/api/utenti'
 import { proposteDelCorso, creaProposta, ritiraProposta } from '@/api/proposte'
 import { commentiCorso, creaCommento, eliminaCommento } from '@/api/commenti'
@@ -53,6 +57,7 @@ import {
   PageLoader,
 } from '@/components/ui'
 import { StatoCorsoBadge } from '@/pages/Dashboard'
+import { scaricaReportPresenzePdf, reportPresenzeCsv } from '@/lib/pdf'
 import {
   STATO_CORSO_LABEL,
   STATO_ISCRIZIONE_LABEL,
@@ -66,6 +71,7 @@ import type {
   Iscrizione,
   EsitoCorso,
   StatoCorso,
+  StatoCertificato,
   StatoIscrizione,
   StatoPresenza,
   Utente,
@@ -210,6 +216,8 @@ export default function CorsoDettaglio() {
       {tab === 'iscritti' && isStaff && (
         <SezioneIscritti
           corsoId={id}
+          corso={c}
+          giornate={giornate.data ?? []}
           iscrizioni={iscrizioni.data ?? []}
           mappaMembri={mappaMembri}
           atleti={(membri.data ?? []).filter((m) => m.ruolo === 'ATLETA' && m.attivo)}
@@ -626,15 +634,20 @@ function ModalPresenze({
 
 function SezioneIscritti({
   corsoId,
+  corso,
+  giornate,
   iscrizioni,
   mappaMembri,
   atleti,
 }: {
   corsoId: string
+  corso: Corso
+  giornate: Giornata[]
   iscrizioni: Iscrizione[]
   mappaMembri: Map<string, Utente>
   atleti: Utente[]
 }) {
+  const { asd } = useAuth()
   const toast = useToast()
   const qc = useQueryClient()
   const [aggiungi, setAggiungi] = useState(false)
@@ -642,6 +655,35 @@ function SezioneIscritti({
   const [valuta, setValuta] = useState<Iscrizione | null>(null)
 
   const invalida = () => qc.invalidateQueries({ queryKey: ['iscrizioni', corsoId] })
+
+  // Presenze dell'intero corso (tutte le giornate) per gli export.
+  const giornateIds = giornate.map((g) => g.id)
+  const presenze = useQuery({
+    queryKey: ['presenze-corso', corsoId, giornateIds.length],
+    queryFn: () => presenzeDelCorso(giornateIds),
+    enabled: giornateIds.length > 0,
+  })
+
+  // Stato del certificato medico per atleta (per l'avviso, non blocca nulla).
+  const certificati = useQuery({ queryKey: ['stato-certificati'], queryFn: statoCertificati })
+  const statoCertDi = useMemo(() => {
+    const m = new Map<string, StatoCertificato>()
+    ;(certificati.data ?? []).forEach((c) => m.set(c.atleta_id, c.stato))
+    return m
+  }, [certificati.data])
+
+  // Dati tabellari condivisi da PDF e CSV: una riga per iscritto.
+  const opzioniPresenze = () => ({
+    corso: { titolo: corso.titolo },
+    asdNome: asd?.nome ?? 'ASD',
+    asdLogo: asd?.logo ?? null,
+    giornate,
+    presenze: presenze.data ?? [],
+    atleti: iscrizioni.map((i) => ({
+      atletaId: i.atleta_id,
+      nomeCompleto: nomeCompleto(mappaMembri.get(i.atleta_id)),
+    })),
+  })
 
   const iscriviMut = useMutation({
     mutationFn: () => iscriviAtleta(corsoId, atletaSel, 'ATTIVA'),
@@ -675,9 +717,23 @@ function SezioneIscritti({
 
   return (
     <div>
-      <div className="mb-3">
+      <div className="mb-3 flex flex-wrap gap-2">
         <button className="btn-secondary" onClick={() => setAggiungi(true)}>
           <Plus className="h-4 w-4" /> Iscrivi atleta
+        </button>
+        <button
+          className="btn-ghost"
+          onClick={() => scaricaReportPresenzePdf(opzioniPresenze())}
+          disabled={iscrizioni.length === 0 || giornate.length === 0 || presenze.isLoading}
+        >
+          <FileText className="h-4 w-4" /> Report presenze PDF
+        </button>
+        <button
+          className="btn-ghost"
+          onClick={() => reportPresenzeCsv(opzioniPresenze())}
+          disabled={iscrizioni.length === 0 || giornate.length === 0 || presenze.isLoading}
+        >
+          <Download className="h-4 w-4" /> Esporta presenze CSV
         </button>
       </div>
 
@@ -690,6 +746,7 @@ function SezioneIscritti({
               <span className="flex-1 text-sm text-slate-700">
                 {nomeCompleto(mappaMembri.get(i.atleta_id))}
               </span>
+              <AvvisoCertificato stato={statoCertDi.get(i.atleta_id)} />
               {i.esito && (
                 <Badge tono={i.esito === 'SUPERATO' ? 'verde' : 'rosso'}>
                   {i.esito === 'SUPERATO' ? 'Superato' : 'Non superato'}
@@ -761,6 +818,18 @@ function SezioneIscritti({
       </Modal>
     </div>
   )
+}
+
+/**
+ * Badge di avviso sul certificato medico dell'atleta. Non blocca nulla: mostra
+ * solo un'evidenza quando il certificato non è valido. Nessun badge se lo stato
+ * è VALIDO o non è ancora noto.
+ */
+function AvvisoCertificato({ stato }: { stato?: StatoCertificato }) {
+  if (!stato || stato === 'VALIDO') return null
+  if (stato === 'SCADUTO') return <Badge tono="rosso">Certificato scaduto</Badge>
+  if (stato === 'IN_SCADENZA') return <Badge tono="giallo">In scadenza</Badge>
+  return <Badge tono="grigio">Nessun certificato</Badge>
 }
 
 // ---- Proponi come corso standard ----

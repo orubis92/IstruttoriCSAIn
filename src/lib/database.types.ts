@@ -52,6 +52,13 @@ export interface Utente {
   email: string | null
   telefono: string | null
   attivo: boolean
+  // Dati del genitore/tutore (per gli atleti minorenni)
+  genitore_nome: string | null
+  genitore_cognome: string | null
+  genitore_codice_fiscale: string | null
+  genitore_email: string | null
+  genitore_telefono: string | null
+  genitore_relazione: string | null
   creato_da: string | null
   creato_il: string
   aggiornato_il: string
@@ -251,6 +258,34 @@ export interface CertificatoMedico {
   creato_da: string | null
   creato_il: string
   aggiornato_il: string
+}
+
+export type StatoCertificato = 'ASSENTE' | 'SCADUTO' | 'IN_SCADENZA' | 'VALIDO'
+
+/** Riga della vista v_certificati_atleti: stato del certificato più recente. */
+export interface CertificatoStato {
+  atleta_id: string
+  asd_id: string
+  nome: string
+  cognome: string
+  tipo: TipoCertificato | null
+  data_scadenza: string | null
+  stato: StatoCertificato
+  giorni_alla_scadenza: number | null
+}
+
+/** Riga del registro accessi ai dati sanitari (art. 9 GDPR). */
+export interface AccessoAudit {
+  id: string
+  asd_id: string | null
+  attore_id: string | null
+  attore_nome: string | null
+  oggetto_tipo: string
+  oggetto_id: string | null
+  atleta_id: string | null
+  atleta_nome: string | null
+  azione: 'LETTURA' | 'CREAZIONE' | 'MODIFICA' | 'CANCELLAZIONE'
+  creato_il: string
 }
 
 export type TipoConversazione = 'DIRETTA' | 'GRUPPO'

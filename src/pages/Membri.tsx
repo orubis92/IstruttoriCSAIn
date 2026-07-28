@@ -1,7 +1,8 @@
 import { useMemo, useState, type FormEvent } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { UserPlus, KeyRound, Copy, Check, Search } from 'lucide-react'
+import { UserPlus, KeyRound, Copy, Check, Search, Download } from 'lucide-react'
+import { scaricaCsv } from '@/lib/csv'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/components/Toast'
 import {
@@ -9,12 +10,14 @@ import {
   creaUtente,
   attivaDisattiva,
   aggiornaDatiAnagrafici,
+  aggiornaUtente,
 } from '@/api/utenti'
 import { creaInvito } from '@/api/inviti'
 import {
   certificatiAtleta,
   creaCertificato,
   eliminaCertificato,
+  statoCertificati,
 } from '@/api/certificati'
 import { messaggioErrore } from '@/api/errors'
 import {
@@ -27,8 +30,8 @@ import {
   EmptyState,
   Avatar,
 } from '@/components/ui'
-import { RUOLO_LABEL, formatData, nomeCompleto } from '@/lib/format'
-import type { RuoloUtente, TipoCertificato, Utente } from '@/lib/database.types'
+import { RUOLO_LABEL, formatData, nomeCompleto, eMinorenne } from '@/lib/format'
+import type { RuoloUtente, StatoCertificato, TipoCertificato, Utente } from '@/lib/database.types'
 
 export default function Membri() {
   const { asd, isStaff, isAdmin, profilo } = useAuth()
@@ -43,8 +46,18 @@ export default function Membri() {
   const [certificatoDi, setCertificatoDi] = useState<Utente | null>(null)
 
   const membri = useQuery({ queryKey: ['membri'], queryFn: listaMembri })
+  const certStato = useQuery({ queryKey: ['stato-certificati'], queryFn: statoCertificati })
 
-  const invalida = () => qc.invalidateQueries({ queryKey: ['membri'] })
+  const statoPerAtleta = useMemo(() => {
+    const m = new Map<string, StatoCertificato>()
+    ;(certStato.data ?? []).forEach((r) => m.set(r.atleta_id, r.stato))
+    return m
+  }, [certStato.data])
+
+  const invalida = () => {
+    qc.invalidateQueries({ queryKey: ['membri'] })
+    qc.invalidateQueries({ queryKey: ['stato-certificati'] })
+  }
 
   const inviteMut = useMutation({
     mutationFn: (utenteId: string) => creaInvito(utenteId),
@@ -74,6 +87,35 @@ export default function Membri() {
     })
   }, [membri.data, cerca, filtro])
 
+  function esporta() {
+    const label: Record<StatoCertificato, string> = {
+      ASSENTE: 'Nessun certificato',
+      SCADUTO: 'Scaduto',
+      IN_SCADENZA: 'In scadenza',
+      VALIDO: 'Valido',
+    }
+    scaricaCsv(`membri-${asd?.nome ?? 'asd'}`, filtrati, [
+      { intestazione: 'Cognome', valore: (m) => m.cognome },
+      { intestazione: 'Nome', valore: (m) => m.nome },
+      { intestazione: 'Ruolo', valore: (m) => RUOLO_LABEL[m.ruolo] },
+      { intestazione: 'Data di nascita', valore: (m) => formatData(m.data_nascita) },
+      { intestazione: 'Minore', valore: (m) => (eMinorenne(m.data_nascita) ? 'Sì' : 'No') },
+      { intestazione: 'Codice fiscale', valore: (m) => m.codice_fiscale },
+      { intestazione: 'Tessera CSAIN', valore: (m) => m.n_tessera_csain },
+      { intestazione: 'Email', valore: (m) => m.email },
+      { intestazione: 'Telefono', valore: (m) => m.telefono },
+      {
+        intestazione: 'Certificato',
+        valore: (m) => (m.ruolo === 'ATLETA' ? label[statoPerAtleta.get(m.id) ?? 'ASSENTE'] : ''),
+      },
+      { intestazione: 'Genitore/tutore', valore: (m) => nomeGenitore(m) },
+      { intestazione: 'Relazione', valore: (m) => m.genitore_relazione },
+      { intestazione: 'Tel. genitore', valore: (m) => m.genitore_telefono },
+      { intestazione: 'Email genitore', valore: (m) => m.genitore_email },
+      { intestazione: 'Account attivo', valore: (m) => (m.auth_id ? 'Sì' : 'No') },
+    ])
+  }
+
   if (!isStaff) return <Navigate to="/" replace />
 
   return (
@@ -82,9 +124,14 @@ export default function Membri() {
         titolo="Membri"
         sottotitolo={asd?.nome}
         azioni={
-          <button className="btn-primary" onClick={() => setNuovoAperto(true)}>
-            <UserPlus className="h-4 w-4" /> Nuovo membro
-          </button>
+          <>
+            <button className="btn-secondary" onClick={esporta} disabled={filtrati.length === 0}>
+              <Download className="h-4 w-4" /> Esporta CSV
+            </button>
+            <button className="btn-primary" onClick={() => setNuovoAperto(true)}>
+              <UserPlus className="h-4 w-4" /> Nuovo membro
+            </button>
+          </>
         }
       />
 
@@ -133,7 +180,11 @@ export default function Membri() {
                   {m.auth_id ? 'account attivo' : 'in attesa di attivazione'}
                 </p>
               </div>
-              <Badge tono={m.ruolo === 'ATLETA' ? 'grigio' : 'brand'}>{RUOLO_LABEL[m.ruolo]}</Badge>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {eMinorenne(m.data_nascita) && <Badge tono="blu">Minore</Badge>}
+                {m.ruolo === 'ATLETA' && <CertBadge stato={statoPerAtleta.get(m.id)} />}
+                <Badge tono={m.ruolo === 'ATLETA' ? 'grigio' : 'brand'}>{RUOLO_LABEL[m.ruolo]}</Badge>
+              </div>
               <div className="flex gap-1">
                 <button className="btn-ghost px-2 py-1 text-xs" onClick={() => setModifica(m)}>
                   Dati
@@ -233,6 +284,14 @@ function FormNuovoMembro({
   const [tessera, setTessera] = useState('')
   const [email, setEmail] = useState('')
   const [creaInvitoSubito, setCreaInvitoSubito] = useState(true)
+  const [genNome, setGenNome] = useState('')
+  const [genCognome, setGenCognome] = useState('')
+  const [genRelazione, setGenRelazione] = useState('Genitore')
+  const [genEmail, setGenEmail] = useState('')
+  const [genTelefono, setGenTelefono] = useState('')
+  const [genCf, setGenCf] = useState('')
+
+  const minore = ruolo === 'ATLETA' && eMinorenne(dataNascita)
 
   const mut = useMutation({
     mutationFn: async () => {
@@ -246,6 +305,12 @@ function FormNuovoMembro({
         nTesseraCsain: tessera,
         email,
         creatoDa,
+        genitoreNome: minore ? genNome : null,
+        genitoreCognome: minore ? genCognome : null,
+        genitoreRelazione: minore ? genRelazione : null,
+        genitoreEmail: minore ? genEmail : null,
+        genitoreTelefono: minore ? genTelefono : null,
+        genitoreCodiceFiscale: minore ? genCf : null,
       })
       if (creaInvitoSubito) {
         const inv = await creaInvito(u.id)
@@ -307,6 +372,50 @@ function FormNuovoMembro({
         <Field label="Email">
           <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
         </Field>
+
+        {minore && (
+          <div className="space-y-3 rounded-lg border border-blue-200 bg-blue-50/60 p-3">
+            <p className="text-sm font-medium text-blue-900">
+              Atleta minorenne — dati del genitore/tutore
+            </p>
+            <p className="text-xs text-blue-700">
+              Per i minori il consenso al trattamento dei dati è prestato da chi esercita la
+              responsabilità genitoriale.
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Nome genitore/tutore">
+                <input className="input" value={genNome} onChange={(e) => setGenNome(e.target.value)} />
+              </Field>
+              <Field label="Cognome genitore/tutore">
+                <input className="input" value={genCognome} onChange={(e) => setGenCognome(e.target.value)} />
+              </Field>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Relazione">
+                <select className="input" value={genRelazione} onChange={(e) => setGenRelazione(e.target.value)}>
+                  <option>Genitore</option>
+                  <option>Tutore</option>
+                  <option>Affidatario</option>
+                </select>
+              </Field>
+              <Field label="Telefono">
+                <input className="input" value={genTelefono} onChange={(e) => setGenTelefono(e.target.value)} />
+              </Field>
+            </div>
+            <Field label="Email genitore/tutore">
+              <input className="input" type="email" value={genEmail} onChange={(e) => setGenEmail(e.target.value)} />
+            </Field>
+            <Field label="Codice fiscale genitore/tutore">
+              <input
+                className="input uppercase"
+                value={genCf}
+                onChange={(e) => setGenCf(e.target.value.toUpperCase())}
+                maxLength={16}
+              />
+            </Field>
+          </div>
+        )}
+
         <label className="flex items-center gap-2 text-sm text-slate-600">
           <input
             type="checkbox"
@@ -340,9 +449,29 @@ function FormDatiAnagrafici({
   const toast = useToast()
   const [cf, setCf] = useState(utente.codice_fiscale ?? '')
   const [tessera, setTessera] = useState(utente.n_tessera_csain ?? '')
+  const [genNome, setGenNome] = useState(utente.genitore_nome ?? '')
+  const [genCognome, setGenCognome] = useState(utente.genitore_cognome ?? '')
+  const [genRelazione, setGenRelazione] = useState(utente.genitore_relazione ?? 'Genitore')
+  const [genEmail, setGenEmail] = useState(utente.genitore_email ?? '')
+  const [genTelefono, setGenTelefono] = useState(utente.genitore_telefono ?? '')
+  const [genCf, setGenCf] = useState(utente.genitore_codice_fiscale ?? '')
+
+  const minore = utente.ruolo === 'ATLETA' && eMinorenne(utente.data_nascita)
 
   const mut = useMutation({
-    mutationFn: () => aggiornaDatiAnagrafici(utente.id, cf || null, tessera || null),
+    mutationFn: async () => {
+      await aggiornaDatiAnagrafici(utente.id, cf || null, tessera || null)
+      if (minore) {
+        await aggiornaUtente(utente.id, {
+          genitore_nome: genNome || null,
+          genitore_cognome: genCognome || null,
+          genitore_relazione: genRelazione || null,
+          genitore_email: genEmail || null,
+          genitore_telefono: genTelefono || null,
+          genitore_codice_fiscale: genCf || null,
+        })
+      }
+    },
     onSuccess: () => {
       toast.successo('Dati aggiornati.')
       onFatto()
@@ -364,6 +493,44 @@ function FormDatiAnagrafici({
         <Field label="Tessera CSAIN">
           <input className="input" value={tessera} onChange={(e) => setTessera(e.target.value)} />
         </Field>
+
+        {minore && (
+          <div className="space-y-3 rounded-lg border border-blue-200 bg-blue-50/60 p-3">
+            <p className="text-sm font-medium text-blue-900">Genitore/tutore (atleta minorenne)</p>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Nome">
+                <input className="input" value={genNome} onChange={(e) => setGenNome(e.target.value)} />
+              </Field>
+              <Field label="Cognome">
+                <input className="input" value={genCognome} onChange={(e) => setGenCognome(e.target.value)} />
+              </Field>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Relazione">
+                <select className="input" value={genRelazione} onChange={(e) => setGenRelazione(e.target.value)}>
+                  <option>Genitore</option>
+                  <option>Tutore</option>
+                  <option>Affidatario</option>
+                </select>
+              </Field>
+              <Field label="Telefono">
+                <input className="input" value={genTelefono} onChange={(e) => setGenTelefono(e.target.value)} />
+              </Field>
+            </div>
+            <Field label="Email">
+              <input className="input" type="email" value={genEmail} onChange={(e) => setGenEmail(e.target.value)} />
+            </Field>
+            <Field label="Codice fiscale">
+              <input
+                className="input uppercase"
+                value={genCf}
+                onChange={(e) => setGenCf(e.target.value.toUpperCase())}
+                maxLength={16}
+              />
+            </Field>
+          </div>
+        )}
+
         <p className="text-xs text-slate-400">Iscritto il {formatData(utente.creato_il)}.</p>
         <div className="flex gap-2">
           <button className="btn-secondary" onClick={onClose}>
@@ -376,6 +543,19 @@ function FormDatiAnagrafici({
       </div>
     </Modal>
   )
+}
+
+function nomeGenitore(m: Utente): string {
+  const s = `${m.genitore_nome ?? ''} ${m.genitore_cognome ?? ''}`.trim()
+  return s
+}
+
+function CertBadge({ stato }: { stato?: StatoCertificato }) {
+  if (!stato) return null
+  if (stato === 'VALIDO') return <Badge tono="verde">Cert. valido</Badge>
+  if (stato === 'IN_SCADENZA') return <Badge tono="giallo">Cert. in scadenza</Badge>
+  if (stato === 'SCADUTO') return <Badge tono="rosso">Cert. scaduto</Badge>
+  return <Badge tono="grigio">Cert. assente</Badge>
 }
 
 function CodiceCopiabile({ codice }: { codice: string }) {

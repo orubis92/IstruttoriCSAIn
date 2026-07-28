@@ -16,6 +16,7 @@ import Moduli from '@/pages/Moduli'
 import Chat from '@/pages/Chat'
 import Standard from '@/pages/Standard'
 import Impostazioni from '@/pages/Impostazioni'
+import Registro from '@/pages/Registro'
 import NonTrovato from '@/pages/NonTrovato'
 import { isSupabaseConfigured } from '@/lib/supabase'
 import { Alert } from '@/components/ui'
@@ -52,6 +53,7 @@ export default function App() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/profilo" element={<Profilo />} />
           <Route path="/impostazioni" element={<Impostazioni />} />
+          <Route path="/registro-accessi" element={<Registro />} />
           <Route path="/membri" element={<Membri />} />
           <Route path="/corsi" element={<Corsi />} />
           <Route path="/calendario" element={<Calendario />} />
