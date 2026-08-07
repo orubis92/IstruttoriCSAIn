@@ -168,6 +168,16 @@ Da «Membri» si esporta l'elenco in CSV; da un corso si scaricano il **report
 presenze** (PDF e CSV) e i **diplomi in PDF** (oltre alla stampa). Non serve
 alcuna configurazione.
 
+### Modelli di corso ufficiali CSAIN (consigliato)
+
+Esegui `sql/19_modelli_ufficiali.sql` (dopo 00): aggiunge come modelli di
+piattaforma (disponibili a tutte le ASD nella creazione guidata) i tre corsi
+neofiti delle Linee Guida Corsi Tecnici CSAIN — **Base 1** (12 ore, 6 giornate),
+**Base 2** (10 ore, 6 giornate) e **Avanzato** (10 ore, 5 giornate) — con le
+rispettive lezioni e argomenti. Da «Corsi → Nuovo corso → creazione guidata» si
+sceglie il modello e le giornate vengono generate automaticamente. È
+ri-eseguibile (non crea duplicati).
+
 ### Dati di base (opzionale ma consigliato)
 
 Dopo aver applicato i file `sql/00`, `01`, `02`, esegui anche `sql/03_seed.sql`
