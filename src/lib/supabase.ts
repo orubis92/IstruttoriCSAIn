@@ -12,15 +12,23 @@ if (!url || !anonKey) {
   )
 }
 
-export const supabase = createClient(url ?? '', anonKey ?? '', {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: true,
-  },
-})
-
 export const isSupabaseConfigured = Boolean(url && anonKey)
+
+// Se la configurazione manca NON chiamiamo createClient con valori vuoti:
+// lancerebbe un'eccezione al caricamento e l'app resterebbe una pagina bianca.
+// Con valori segnaposto l'app si avvia e mostra l'avviso di configurazione
+// mancante (vedi App.tsx) invece di bloccarsi in silenzio.
+export const supabase = createClient(
+  isSupabaseConfigured ? url : 'https://configurazione-mancante.invalid',
+  isSupabaseConfigured ? anonKey : 'chiave-mancante',
+  {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+    },
+  },
+)
 
 /** Nome del bucket dei documenti (vedi sql/02_storage.sql). */
 export const BUCKET_DOCUMENTI = 'documenti'
