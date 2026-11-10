@@ -97,7 +97,7 @@ Deno.serve(async (req) => {
             .eq('id', n.id)
           continue
         }
-        const payload = JSON.stringify({ title: n.titolo, body: n.corpo, url: n.url })
+        const payload = JSON.stringify({ title: n.titolo, body: n.corpo, url: n.url, urgente: !!n.urgente, tipo: n.tipo })
         for (const s of subs) {
           try {
             await webpush.sendNotification(

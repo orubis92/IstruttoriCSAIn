@@ -4,8 +4,9 @@ import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/components/Toast'
 import { aggiornaUtente, staffAsd } from '@/api/utenti'
 import { mieiCertificati } from '@/api/certificati'
-import { getPreferenze, salvaPreferenze } from '@/api/notifiche'
-import { attivaPush, pushSupportato, pushConfigurato } from '@/api/push'
+import { Link } from 'react-router-dom'
+import { getPreferenze, salvaPreferenze, getPreferenzeAsd, descriviOrari } from '@/api/notifiche'
+import { PannelloPush } from '@/components/PannelloPush'
 import { messaggioErrore } from '@/api/errors'
 import { Card, PageHeader, Field, Spinner, Badge, Alert } from '@/components/ui'
 import { RUOLO_LABEL, formatData, nomeCompleto } from '@/lib/format'
@@ -73,7 +74,7 @@ export default function Profilo() {
           </p>
         </Card>
 
-        {profilo && <CardNotifiche utenteId={profilo.id} />}
+        {profilo && <CardNotifiche utenteId={profilo.id} asdId={profilo.asd_id} />}
 
         <Card className="p-5">
           <h2 className="mb-4 font-semibold text-slate-900">Recapiti</h2>
@@ -158,33 +159,38 @@ function Riga({ etichetta, valore }: { etichetta: string; valore: string }) {
   )
 }
 
-function CardNotifiche({ utenteId }: { utenteId: string }) {
+function CardNotifiche({ utenteId, asdId }: { utenteId: string; asdId: string | null }) {
   const toast = useToast()
   const q = useQuery({ queryKey: ['preferenze', utenteId], queryFn: () => getPreferenze(utenteId) })
+  const asdPref = useQuery({
+    queryKey: ['preferenze-asd', asdId],
+    queryFn: () => getPreferenzeAsd(asdId!),
+    enabled: !!asdId,
+  })
 
+  const [usaAsd, setUsaAsd] = useState(true)
   const [giornoPrima, setGiornoPrima] = useState(true)
   const [mattina, setMattina] = useState(false)
   const [orePrima, setOrePrima] = useState('')
-  const [viaEmail, setViaEmail] = useState(false)
   const [viaPush, setViaPush] = useState(false)
 
   useEffect(() => {
     if (q.data) {
+      setUsaAsd(!!asdId && q.data.usa_predefiniti)
       setGiornoPrima(q.data.giorno_prima)
       setMattina(q.data.mattina)
       setOrePrima(q.data.ore_prima != null ? String(q.data.ore_prima) : '')
-      setViaEmail(q.data.via_email)
       setViaPush(q.data.via_push)
     }
-  }, [q.data])
+  }, [q.data, asdId])
 
   const mut = useMutation({
     mutationFn: () =>
       salvaPreferenze(utenteId, {
+        usa_predefiniti: usaAsd,
         giorno_prima: giornoPrima,
         mattina,
-        ore_prima: orePrima ? Number(orePrima) : null,
-        via_email: viaEmail,
+        ore_prima: orePrima ? Math.min(48, Math.max(1, Number(orePrima))) : null,
         via_push: viaPush,
       }),
     onSuccess: () => {
@@ -196,9 +202,15 @@ function CardNotifiche({ utenteId }: { utenteId: string }) {
 
   return (
     <Card className="p-5 lg:col-span-2">
-      <h2 className="mb-1 font-semibold text-slate-900">Notifiche</h2>
+      <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+        <h2 className="font-semibold text-slate-900">Notifiche</h2>
+        <Link to="/notifiche" className="text-sm font-medium text-brand-700 hover:underline">
+          Apri il centro notifiche →
+        </Link>
+      </div>
       <p className="mb-4 text-sm text-slate-500">
-        Scegli quando ricevere i promemoria delle lezioni e su quali canali.
+        Avvisi e promemoria arrivano sempre nel centro notifiche dell'app. Qui scegli gli orari dei promemoria
+        e se riceverli anche come push sul telefono.
       </p>
       {q.isLoading ? (
         <Spinner className="h-5 w-5 text-brand-600" />
@@ -206,73 +218,66 @@ function CardNotifiche({ utenteId }: { utenteId: string }) {
         <div className="space-y-5">
           <div>
             <p className="label">Promemoria delle lezioni</p>
-            <div className="space-y-2">
-              <label className="flex items-center gap-2 text-sm text-slate-700">
-                <input type="checkbox" checked={giornoPrima} onChange={(e) => setGiornoPrima(e.target.checked)} />
-                Il giorno prima
-              </label>
-              <label className="flex items-center gap-2 text-sm text-slate-700">
-                <input type="checkbox" checked={mattina} onChange={(e) => setMattina(e.target.checked)} />
-                La mattina della lezione
-              </label>
-              <div className="flex items-center gap-2 text-sm text-slate-700">
-                <span>Qualche ora prima:</span>
-                <input
-                  type="number"
-                  min={1}
-                  max={48}
-                  className="input w-20 py-1"
-                  value={orePrima}
-                  onChange={(e) => setOrePrima(e.target.value)}
-                  placeholder="ore"
-                />
-                <span className="text-slate-400">(vuoto = disattivato)</span>
+            {asdId && (
+              <div className="mb-3 space-y-2">
+                <label className="flex items-start gap-2 text-sm text-slate-700">
+                  <input type="radio" className="mt-0.5" checked={usaAsd} onChange={() => setUsaAsd(true)} />
+                  <span>
+                    Usa gli orari della mia ASD
+                    <span className="block text-xs text-slate-400">
+                      {asdPref.data ? descriviOrari(asdPref.data) : '…'}
+                    </span>
+                  </span>
+                </label>
+                <label className="flex items-center gap-2 text-sm text-slate-700">
+                  <input type="radio" checked={!usaAsd} onChange={() => setUsaAsd(false)} />
+                  Scelgo io gli orari
+                </label>
               </div>
-            </div>
+            )}
+            {!usaAsd && (
+              <div className={`space-y-2 ${asdId ? 'border-l-2 border-slate-100 pl-4' : ''}`}>
+                <label className="flex items-center gap-2 text-sm text-slate-700">
+                  <input type="checkbox" checked={giornoPrima} onChange={(e) => setGiornoPrima(e.target.checked)} />
+                  Il giorno prima (dalle 18)
+                </label>
+                <label className="flex items-center gap-2 text-sm text-slate-700">
+                  <input type="checkbox" checked={mattina} onChange={(e) => setMattina(e.target.checked)} />
+                  La mattina della lezione
+                </label>
+                <div className="flex flex-wrap items-center gap-2 text-sm text-slate-700">
+                  <span>Qualche ora prima:</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={48}
+                    className="input w-20 py-1"
+                    value={orePrima}
+                    onChange={(e) => setOrePrima(e.target.value)}
+                    placeholder="ore"
+                  />
+                  <span className="text-slate-400">(vuoto = disattivato)</span>
+                </div>
+              </div>
+            )}
           </div>
 
           <div>
             <p className="label">Canali</p>
-            <div className="space-y-2">
-              {/* Notifiche email temporaneamente disattivate: mostriamo solo il push.
-                  La preferenza via_email resta salvata a database e si può riattivare
-                  ripristinando questa spunta quando il canale email sarà configurato. */}
-              <label className="flex items-center gap-2 text-sm text-slate-700">
-                <input type="checkbox" checked={viaPush} onChange={(e) => setViaPush(e.target.checked)} />
-                Notifiche push sul dispositivo
-              </label>
+            {/* Il canale email resta salvato a database (via_email) ma non è ancora
+                esposto: si riattiva qui quando l'invio email sarà configurato. */}
+            <label className="flex items-start gap-2 text-sm text-slate-700">
+              <input type="checkbox" className="mt-0.5" checked={viaPush} onChange={(e) => setViaPush(e.target.checked)} />
+              <span>
+                Ricevi promemoria e avvisi anche come push
+                <span className="block text-xs text-slate-400">
+                  Se lo togli, ti arrivano in push solo gli avvisi urgenti.
+                </span>
+              </span>
+            </label>
+            <div className="mt-3">
+              <PannelloPush onCambio={() => q.refetch()} />
             </div>
-
-            {viaPush && (
-              <div className="mt-3">
-                {pushSupportato() && pushConfigurato() ? (
-                  <button
-                    type="button"
-                    className="btn-secondary"
-                    onClick={async () => {
-                      try {
-                        await attivaPush(utenteId)
-                        toast.successo('Notifiche push attivate su questo dispositivo.')
-                      } catch (e) {
-                        toast.errore(messaggioErrore(e))
-                      }
-                    }}
-                  >
-                    Attiva le push su questo dispositivo
-                  </button>
-                ) : (
-                  <Alert tono="blu">
-                    {pushSupportato()
-                      ? 'Le notifiche push non sono ancora configurate lato server.'
-                      : 'Questo dispositivo/browser non supporta le notifiche push.'}
-                  </Alert>
-                )}
-                <p className="mt-2 text-xs text-slate-400">
-                  Va attivato su ogni dispositivo su cui vuoi ricevere le push. Su iPhone funziona solo
-                  se hai aggiunto l'app alla schermata Home.
-                </p>
-              </div>
-            )}
           </div>
 
           <button className="btn-primary" onClick={() => mut.mutate()} disabled={mut.isPending}>

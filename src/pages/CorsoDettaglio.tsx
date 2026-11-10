@@ -47,6 +47,7 @@ import { proposteDelCorso, creaProposta, ritiraProposta } from '@/api/proposte'
 import { commentiCorso, creaCommento, eliminaCommento } from '@/api/commenti'
 import { messaggioErrore } from '@/api/errors'
 import { SignaturePad } from '@/components/SignaturePad'
+import { AvvisiCorso } from '@/components/AvvisiCorso'
 import {
   Card,
   PageHeader,
@@ -88,7 +89,7 @@ export default function CorsoDettaglio() {
   const { isStaff, profilo } = useAuth()
   const toast = useToast()
   const qc = useQueryClient()
-  const [tab, setTab] = useState<'giornate' | 'iscritti' | 'commenti' | 'diplomi'>('giornate')
+  const [tab, setTab] = useState<'giornate' | 'iscritti' | 'avvisi' | 'commenti' | 'diplomi'>('giornate')
 
   const corso = useQuery({ queryKey: ['corso', id], queryFn: () => getCorso(id), enabled: !!id })
   const giornate = useQuery({ queryKey: ['giornate', id], queryFn: () => listaGiornate(id), enabled: !!id })
@@ -232,6 +233,11 @@ export default function CorsoDettaglio() {
             Iscritti ({iscrizioni.data?.length ?? 0})
           </TabBtn>
         )}
+        {isStaff && (
+          <TabBtn attivo={tab === 'avvisi'} onClick={() => setTab('avvisi')}>
+            Avvisi
+          </TabBtn>
+        )}
         <TabBtn attivo={tab === 'commenti'} onClick={() => setTab('commenti')}>
           Commenti
         </TabBtn>
@@ -261,6 +267,13 @@ export default function CorsoDettaglio() {
           iscrizioni={iscrizioni.data ?? []}
           mappaMembri={mappaMembri}
           atleti={(membri.data ?? []).filter((m) => m.ruolo === 'ATLETA' && m.attivo)}
+        />
+      )}
+
+      {tab === 'avvisi' && isStaff && (
+        <AvvisiCorso
+          corsoId={id}
+          nIscritti={(iscrizioni.data ?? []).filter((i) => i.stato === 'ATTIVA' || i.stato === 'RICHIESTA').length}
         />
       )}
 

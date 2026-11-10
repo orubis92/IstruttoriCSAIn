@@ -11,6 +11,7 @@ import {
 import { scaricaCsv } from '@/lib/csv'
 import { Card, PageHeader, Spinner, EmptyState, Alert, Badge } from '@/components/ui'
 import { StatoCorsoBadge } from '@/pages/Dashboard'
+import { ComunicazioniPiattaforma, StatoInvio } from '@/components/ComunicazioniPiattaforma'
 import { STATO_CORSO_LABEL, formatData } from '@/lib/format'
 import type { StatoCorso } from '@/lib/database.types'
 
@@ -229,6 +230,8 @@ export default function Piattaforma() {
           </div>
         )}
       </Card>
+      <ComunicazioniPiattaforma />
+      <StatoInvio />
     </div>
   )
 }

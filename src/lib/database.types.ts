@@ -383,7 +383,65 @@ export interface PreferenzeNotifiche {
   ore_prima: number | null
   via_email: boolean
   via_push: boolean
+  /** true = usa gli orari predefiniti dalla ASD; false = orari personali */
+  usa_predefiniti: boolean
   aggiornato_il: string
+}
+
+/** Promemoria predefiniti decisi dall'amministratore per gli atleti della ASD */
+export interface PreferenzeNotificheAsd {
+  asd_id: string
+  giorno_prima: boolean
+  mattina: boolean
+  ore_prima: number | null
+  aggiornato_il: string
+}
+
+export type TipoNotifica = 'AVVISO' | 'PROMEMORIA' | 'CERTIFICATO' | 'TEST'
+
+/** Una voce del centro notifiche (casella in-app dell'utente) */
+export interface Notifica {
+  id: string
+  utente_id: string
+  tipo: TipoNotifica
+  titolo: string
+  corpo: string | null
+  url: string | null
+  urgente: boolean
+  avviso_id: string | null
+  letta_il: string | null
+  creato_il: string
+}
+
+export type AmbitoAvviso = 'CORSO' | 'PIATTAFORMA_STAFF' | 'PIATTAFORMA_TUTTI'
+
+/** Storico degli avvisi inviati (visibile allo staff e ai programmatori) */
+export interface Avviso {
+  id: string
+  asd_id: string | null
+  corso_id: string | null
+  ambito: AmbitoAvviso
+  mittente_id: string | null
+  mittente_nome: string | null
+  titolo: string
+  testo: string
+  urgente: boolean
+  n_destinatari: number
+  creato_il: string
+}
+
+/** Stato complessivo della coda push/email (solo programmatori) */
+export interface StatoInvioNotifiche {
+  coda: {
+    in_attesa: number
+    piu_vecchia_in_attesa: string | null
+    inviate_24h: number
+    errori_24h: number
+    ultimo_invio: string | null
+    dispositivi: number
+  }
+  ultimi_errori: { creato_il: string; canale: string; tipo: string; errore: string; stato: string }[]
+  cron_programmato: boolean | null
 }
 
 export type StatoProposta = 'IN_REVISIONE' | 'ACCETTATA' | 'RIFIUTATA'

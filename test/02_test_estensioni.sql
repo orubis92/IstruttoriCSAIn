@@ -231,6 +231,151 @@ select test.vietato('un amministratore di un''altra ASD non puo firmare per la A
 select test.verifica('un''altra ASD non vede l''accettazione DPA della ASD Alfa',
   $$select count(*)::int from accettazioni_dpa where asd_id = 'a5d0a5d0-0000-4000-8000-00000000000a'$$, 0);
 
+
+\echo ''
+\echo '== 19. Avvisi, centro notifiche e preferenze ASD =='
+
+-- Dario attiva il push su un dispositivo e poi spegne le push "normali"
+set request.jwt.claim.sub = 'a0000000-0000-4000-8000-000000000005';   -- Dario
+select test.permesso('un utente registra il proprio dispositivo push',
+  $$select registra_push('https://push.example/dario', 'chiave-p256dh', 'chiave-auth')$$);
+select test.verifica('registrare il push attiva il canale push nelle preferenze',
+  $$select count(*)::int from preferenze_notifiche where via_push and usa_predefiniti$$, 1);
+select test.permesso('l''utente spegne le push ordinarie',
+  $$update preferenze_notifiche set via_push = false$$);
+
+select test.vietato('un utente non puo richiamare direttamente il punto d''invio',
+  $$select app.notifica('c0000000-0000-4000-8000-000000000006','AVVISO','x','y',null,null)$$);
+select test.vietato('un atleta non puo inviare avvisi al corso',
+  $$select invia_avviso_corso('c0450000-0000-4000-8000-000000000001','Ciao','Spam')$$);
+
+set request.jwt.claim.sub = 'a0000000-0000-4000-8000-000000000009';   -- admin ASD Gamma (Giulia)
+select test.vietato('lo staff di un''altra ASD non puo inviare avvisi al corso',
+  $$select invia_avviso_corso('c0450000-0000-4000-8000-000000000001','Ciao','Intrusione')$$);
+
+set request.jwt.claim.sub = 'a0000000-0000-4000-8000-000000000004';   -- istruttore Alfa
+select test.verifica('l''istruttore invia un avviso agli iscritti del corso',
+  $$select invia_avviso_corso('c0450000-0000-4000-8000-000000000001','Lezione spostata','Domani alle 18:30')$$, 1);
+select test.vietato('un avviso senza testo e rifiutato',
+  $$select invia_avviso_corso('c0450000-0000-4000-8000-000000000001','Titolo','  ')$$);
+select test.verifica('l''istruttore invia un avviso URGENTE',
+  $$select invia_avviso_corso('c0450000-0000-4000-8000-000000000001','Campo chiuso','Oggi niente lezione', true)$$, 1);
+select test.verifica('lo staff vede lo storico avvisi del corso',
+  $$select count(*)::int from avvisi where corso_id = 'c0450000-0000-4000-8000-000000000001'$$, 2);
+select test.verifica('lo storico registra il numero di destinatari',
+  $$select sum(n_destinatari)::int from avvisi where corso_id = 'c0450000-0000-4000-8000-000000000001'$$, 2);
+select test.vietato('lo staff non puo scrivere avvisi senza passare dalla RPC',
+  $$insert into avvisi (asd_id, corso_id, ambito, titolo, testo)
+    values ('a5d0a5d0-0000-4000-8000-00000000000a','c0450000-0000-4000-8000-000000000001','CORSO','x','y')$$);
+
+reset role;
+set request.jwt.claim.sub = '';
+select test.verifica('avviso ordinario: nessuna push a chi le ha spente',
+  $$select count(*)::int from notifiche_coda q join avvisi a on q.chiave_dedup = 'avviso:' || a.id || ':PUSH'
+     where q.utente_id = 'c0000000-0000-4000-8000-000000000005' and not a.urgente$$, 0);
+select test.verifica('avviso urgente: push anche a chi le ha spente',
+  $$select count(*)::int from notifiche_coda q join avvisi a on q.chiave_dedup = 'avviso:' || a.id || ':PUSH'
+     where q.utente_id = 'c0000000-0000-4000-8000-000000000005' and a.urgente and q.urgente$$, 1);
+select test.verifica('avviso urgente: nessuna email a chi non l''ha scelta',
+  $$select count(*)::int from notifiche_coda
+     where utente_id = 'c0000000-0000-4000-8000-000000000005' and canale = 'EMAIL' and tipo = 'AVVISO'$$, 0);
+set role authenticated;
+
+set request.jwt.claim.sub = 'a0000000-0000-4000-8000-000000000005';   -- Dario
+select test.verifica('il destinatario trova gli avvisi nel centro notifiche',
+  $$select count(*)::int from notifiche where tipo = 'AVVISO'$$, 2);
+select test.verifica('il destinatario non vede lo storico avvisi dello staff',
+  $$select count(*)::int from avvisi$$, 0);
+select test.permesso('il destinatario segna come lette le notifiche',
+  $$update notifiche set letta_il = now() where letta_il is null$$);
+select test.vietato('il destinatario non puo alterare il contenuto di una notifica',
+  $$update notifiche set titolo = 'Falso'$$);
+
+set request.jwt.claim.sub = 'a0000000-0000-4000-8000-000000000006';   -- Elena, non iscritta
+select test.verifica('chi non e iscritto non riceve l''avviso del corso',
+  $$select count(*)::int from notifiche$$, 0);
+
+-- Avvisi di piattaforma
+set request.jwt.claim.sub = 'a0000000-0000-4000-8000-000000000002';   -- admin Alfa
+select test.vietato('un amministratore non puo inviare avvisi di piattaforma',
+  $$select invia_avviso_piattaforma('Manutenzione','Stasera','STAFF')$$);
+
+set request.jwt.claim.sub = 'a0000000-0000-4000-8000-000000000001';   -- PROGRAMMATORE
+select test.vietato('destinatari non validi sono rifiutati',
+  $$select invia_avviso_piattaforma('Manutenzione','Stasera','QUALCUNO')$$);
+select test.verifica('il programmatore invia un avviso allo staff di tutte le ASD',
+  $$select (invia_avviso_piattaforma('Manutenzione','Stasera dalle 22 alle 23','STAFF') >= 2)::int$$, 1);
+select test.permesso('il programmatore legge lo stato dell''invio',
+  $$select stato_invio_notifiche()$$);
+
+set request.jwt.claim.sub = 'a0000000-0000-4000-8000-000000000004';   -- istruttore Alfa
+select test.verifica('l''avviso di piattaforma STAFF arriva all''istruttore',
+  $$select count(*)::int from notifiche where titolo = 'Manutenzione'$$, 1);
+set request.jwt.claim.sub = 'a0000000-0000-4000-8000-000000000009';   -- admin ASD Gamma (Giulia)
+select test.verifica('l''avviso di piattaforma STAFF arriva anche all''altra ASD',
+  $$select count(*)::int from notifiche where titolo = 'Manutenzione'$$, 1);
+select test.vietato('un amministratore non legge lo stato dell''invio',
+  $$select stato_invio_notifiche()$$);
+set request.jwt.claim.sub = 'a0000000-0000-4000-8000-000000000005';   -- Dario
+select test.verifica('l''avviso di piattaforma STAFF non arriva agli atleti',
+  $$select count(*)::int from notifiche where titolo = 'Manutenzione'$$, 0);
+
+-- Notifica di prova
+select test.verifica('la notifica di prova vede il dispositivo iscritto',
+  $$select (invia_notifica_prova()->>'dispositivi')::int$$, 1);
+select test.vietato('la notifica di prova e limitata a una al minuto',
+  $$select invia_notifica_prova()$$);
+
+-- Preferenze predefinite della ASD
+set request.jwt.claim.sub = 'a0000000-0000-4000-8000-000000000004';   -- istruttore
+select test.vietato('un istruttore non imposta i predefiniti della ASD',
+  $$insert into preferenze_notifiche_asd (asd_id, mattina) values ('a5d0a5d0-0000-4000-8000-00000000000a', true)$$);
+set request.jwt.claim.sub = 'a0000000-0000-4000-8000-000000000002';   -- admin Alfa
+select test.vietato('un amministratore non imposta i predefiniti di un''altra ASD',
+  $$insert into preferenze_notifiche_asd (asd_id, mattina) values ('a5d0a5d0-0000-4000-8000-00000000000b', true)$$);
+select test.permesso('l''amministratore imposta il promemoria della mattina per la ASD',
+  $$insert into preferenze_notifiche_asd (asd_id, giorno_prima, mattina) values ('a5d0a5d0-0000-4000-8000-00000000000a', true, true)$$);
+set request.jwt.claim.sub = 'a0000000-0000-4000-8000-000000000005';   -- Dario
+select test.verifica('l''atleta legge i predefiniti della propria ASD',
+  $$select count(*)::int from preferenze_notifiche_asd where mattina$$, 1);
+
+-- Promemoria con orari nel fuso di Roma
+reset role;
+set request.jwt.claim.sub = '';
+insert into giornate (id, corso_id, ordine, titolo, data, ora_inizio) values
+  ('61080000-0000-4000-8000-0000000000d1','c0450000-0000-4000-8000-000000000001',11,'Gara sociale',
+   (now() at time zone 'Europe/Rome')::date + 1, '18:00'),
+  ('61080000-0000-4000-8000-0000000000d2','c0450000-0000-4000-8000-000000000001',12,'Tiro in campagna',
+   (now() at time zone 'Europe/Rome')::date, '18:00');
+insert into giornate (id, corso_id, ordine, titolo, data, ora_inizio, stato) values
+  ('61080000-0000-4000-8000-0000000000d3','c0450000-0000-4000-8000-000000000001',13,'Annullata',
+   (now() at time zone 'Europe/Rome')::date + 1, '18:00', 'ANNULLATA');
+
+select test.verifica('nessun promemoria "giorno prima" di notte',
+  $$select app.genera_promemoria(((now() at time zone 'Europe/Rome')::date + time '02:00') at time zone 'Europe/Rome')$$, 0);
+select test.verifica('alle 8 parte il promemoria della mattina (predefinito della ASD)',
+  $$select app.genera_promemoria(((now() at time zone 'Europe/Rome')::date + time '08:00') at time zone 'Europe/Rome')$$, 1);
+select test.verifica('alle 19 parte il promemoria del giorno prima, non per le giornate annullate',
+  $$select app.genera_promemoria(((now() at time zone 'Europe/Rome')::date + time '19:00') at time zone 'Europe/Rome')$$, 1);
+select test.verifica('i promemoria non si duplicano',
+  $$select app.genera_promemoria(((now() at time zone 'Europe/Rome')::date + time '19:05') at time zone 'Europe/Rome')$$, 0);
+select test.verifica('i promemoria arrivano nel centro notifiche di Dario',
+  $$select count(*)::int from notifiche where utente_id = 'c0000000-0000-4000-8000-000000000005' and tipo = 'PROMEMORIA'$$, 2);
+select test.verifica('promemoria non urgenti: nessuna push a chi le ha spente',
+  $$select count(*)::int from notifiche_coda where utente_id = 'c0000000-0000-4000-8000-000000000005' and tipo = 'PROMEMORIA'$$, 0);
+set role authenticated;
+
+set request.jwt.claim.sub = 'a0000000-0000-4000-8000-000000000005';   -- Dario personalizza
+select test.permesso('l''atleta sceglie orari personali (niente promemoria)',
+  $$update preferenze_notifiche set usa_predefiniti = false, giorno_prima = false, mattina = false, ore_prima = null$$);
+reset role;
+set request.jwt.claim.sub = '';
+delete from notifiche where tipo = 'PROMEMORIA';
+select test.verifica('con orari personali spenti non arrivano promemoria',
+  $$select app.genera_promemoria(((now() at time zone 'Europe/Rome')::date + time '19:00') at time zone 'Europe/Rome')$$, 0);
+delete from giornate where id in ('61080000-0000-4000-8000-0000000000d1','61080000-0000-4000-8000-0000000000d2','61080000-0000-4000-8000-0000000000d3');
+set role authenticated;
+
 reset role;
 \echo ''
 \echo '=============================================='

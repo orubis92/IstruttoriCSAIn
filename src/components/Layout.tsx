@@ -22,6 +22,7 @@ import { GuidaButton } from '@/components/Guida'
 import { NotificheBell } from '@/components/NotificheBell'
 import { GateConsensoPrivacy } from '@/components/GateConsensoPrivacy'
 import { GateAccordoDpa } from '@/components/GateAccordoDpa'
+import { BannerUrgenti } from '@/components/BannerUrgenti'
 import { getLogoCsain } from '@/api/piattaforma'
 import { RUOLO_LABEL, nomeCompleto } from '@/lib/format'
 import type { RuoloUtente } from '@/lib/database.types'
@@ -182,6 +183,7 @@ export default function Layout() {
         </header>
 
         <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 pb-24 md:px-6 md:pb-8">
+          <BannerUrgenti />
           <Outlet />
         </main>
 

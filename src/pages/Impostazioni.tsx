@@ -7,6 +7,7 @@ import { useToast } from '@/components/Toast'
 import { aggiornaAsd } from '@/api/asd'
 import { getLogoCsain, aggiornaLogoCsain, getPrivacy, aggiornaPrivacy } from '@/api/piattaforma'
 import { getDpa, aggiornaDpa } from '@/api/dpa'
+import { getPreferenzeAsd, salvaPreferenzeAsd, descriviOrari } from '@/api/notifiche'
 import { messaggioErrore } from '@/api/errors'
 import { Card, PageHeader, Field, Spinner, Alert } from '@/components/ui'
 
@@ -212,8 +213,89 @@ export default function Impostazioni() {
             </dl>
           )}
         </Card>
+
+        <CardPromemoriaAsd asdId={asd.id} modificabile={isAdmin} />
       </div>
     </div>
+  )
+}
+
+/** Orari predefiniti dei promemoria per gli atleti della ASD (decisi dall'amministratore). */
+function CardPromemoriaAsd({ asdId, modificabile }: { asdId: string; modificabile: boolean }) {
+  const toast = useToast()
+  const qc = useQueryClient()
+  const q = useQuery({ queryKey: ['preferenze-asd', asdId], queryFn: () => getPreferenzeAsd(asdId) })
+  const [giornoPrima, setGiornoPrima] = useState(true)
+  const [mattina, setMattina] = useState(false)
+  const [orePrima, setOrePrima] = useState('')
+
+  useEffect(() => {
+    if (q.data) {
+      setGiornoPrima(q.data.giorno_prima)
+      setMattina(q.data.mattina)
+      setOrePrima(q.data.ore_prima != null ? String(q.data.ore_prima) : '')
+    }
+  }, [q.data])
+
+  const salva = useMutation({
+    mutationFn: () =>
+      salvaPreferenzeAsd(asdId, {
+        giorno_prima: giornoPrima,
+        mattina,
+        ore_prima: orePrima ? Math.min(48, Math.max(1, Number(orePrima))) : null,
+      }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['preferenze-asd', asdId] })
+      toast.successo('Promemoria predefiniti salvati.')
+    },
+    onError: (e) => toast.errore(messaggioErrore(e)),
+  })
+
+  return (
+    <Card className="p-5 lg:col-span-2">
+      <h2 className="mb-1 font-semibold text-slate-900">Promemoria delle lezioni per gli atleti</h2>
+      <p className="mb-4 text-sm text-slate-500">
+        Valgono per tutti gli atleti che non hanno scelto orari personali dal proprio profilo. I promemoria
+        arrivano nel centro notifiche e, a chi le ha attivate, come push.
+      </p>
+      {q.isLoading ? (
+        <Spinner className="h-5 w-5 text-brand-600" />
+      ) : modificabile ? (
+        <div className="space-y-2">
+          <label className="flex items-center gap-2 text-sm text-slate-700">
+            <input type="checkbox" checked={giornoPrima} onChange={(e) => setGiornoPrima(e.target.checked)} />
+            Il giorno prima (dalle 18)
+          </label>
+          <label className="flex items-center gap-2 text-sm text-slate-700">
+            <input type="checkbox" checked={mattina} onChange={(e) => setMattina(e.target.checked)} />
+            La mattina della lezione (dalle 7)
+          </label>
+          <div className="flex flex-wrap items-center gap-2 text-sm text-slate-700">
+            <span>Qualche ora prima:</span>
+            <input
+              type="number"
+              min={1}
+              max={48}
+              className="input w-20 py-1"
+              value={orePrima}
+              onChange={(e) => setOrePrima(e.target.value)}
+              placeholder="ore"
+            />
+            <span className="text-slate-400">(vuoto = disattivato)</span>
+          </div>
+          <div className="pt-2">
+            <button className="btn-primary" onClick={() => salva.mutate()} disabled={salva.isPending}>
+              {salva.isPending && <Spinner className="h-4 w-4" />} Salva promemoria
+            </button>
+          </div>
+        </div>
+      ) : (
+        <p className="text-sm text-slate-700">
+          Attuali: <b>{q.data ? descriviOrari(q.data) : '—'}</b>
+          <span className="block pt-1 text-xs text-slate-400">Solo l'amministratore può modificarli.</span>
+        </p>
+      )}
+    </Card>
   )
 }
 

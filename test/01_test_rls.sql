@@ -383,7 +383,8 @@ select test.vietato('non e possibile registrare due volte lo stesso account',
 
 set request.jwt.claim.sub = 'a0000000-0000-4000-8000-000000000004';  -- istruttore Alfa
 select test.verifica('le linee guida di piattaforma sono visibili a tutte le ASD',
-  'select count(*)::int from modelli_corso where asd_id is null', 1);
+  $$select count(*)::int from modelli_corso
+     where id = '30de0000-0000-4000-8000-000000000001' and asd_id is null$$, 1);
 select test.permesso('generazione guidata del corso dal modello',
   $$select crea_corso_da_modello('30de0000-0000-4000-8000-000000000001','Corso base autunno','2026-09-15')$$);
 select test.verifica('il corso generato contiene le 3 giornate del modello',

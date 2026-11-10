@@ -6,7 +6,7 @@
   "description": "Piattaforma multi-ASD per la gestione dei corsi di tiro con l'arco (CSAIN)",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "tsc -p tsconfig.app.json --noEmit && vite build",
     "typecheck": "tsc -b",
     "preview": "vite preview",
     "lint": "tsc -b --noEmit"

@@ -9,14 +9,25 @@ self.addEventListener('push', function (event) {
   } catch (e) {
     data = { body: event.data ? event.data.text() : '' }
   }
-  const title = data.title || 'IstruttoriCSAIn'
+  const urgente = !!data.urgente
+  const title = (urgente ? '⚠️ ' : '') + (data.title || 'IstruttoriCSAIn')
   event.waitUntil(
-    self.registration.showNotification(title, {
-      body: data.body || '',
-      icon: '/icon-192.png',
-      badge: '/icon-192.png',
-      data: { url: data.url || '/' },
-    }),
+    Promise.all([
+      self.registration.showNotification(title, {
+        body: data.body || '',
+        icon: '/icon-192.png',
+        badge: '/icon-192.png',
+        // gli avvisi urgenti restano a schermo finché non vengono aperti
+        requireInteraction: urgente,
+        renotify: urgente,
+        tag: urgente ? 'urgente-' + Date.now() : undefined,
+        data: { url: data.url || '/' },
+      }),
+      // avvisa le schede aperte, che aggiornano il centro notifiche
+      self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (list) {
+        list.forEach(function (c) { c.postMessage({ tipo: 'notifica-push' }) })
+      }),
+    ]),
   )
 })
 

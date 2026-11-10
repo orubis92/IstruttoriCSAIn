@@ -17,6 +17,7 @@ import Moduli from '@/pages/Moduli'
 import Chat from '@/pages/Chat'
 import Standard from '@/pages/Standard'
 import Piattaforma from '@/pages/Piattaforma'
+import Notifiche from '@/pages/Notifiche'
 import Impostazioni from '@/pages/Impostazioni'
 import Registro from '@/pages/Registro'
 import NonTrovato from '@/pages/NonTrovato'
@@ -67,6 +68,7 @@ export default function App() {
           <Route path="/chat" element={<Chat />} />
           <Route path="/standard" element={<Standard />} />
           <Route path="/piattaforma" element={<Piattaforma />} />
+          <Route path="/notifiche" element={<Notifiche />} />
         </Route>
 
         {/* Pagina di stampa dei diplomi: fuori dal layout per una stampa pulita */}
