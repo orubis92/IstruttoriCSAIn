@@ -58,6 +58,11 @@ non dal login utente.
 
 Imposta i segreti (una riga sola, sostituendo i valori):
 
+> **CRON_SECRET: solo lettere e numeri.** Caratteri come `&`, `|`, `;`, `$`, `!` o spazi
+> vengono interpretati dal terminale (`&` separa due comandi): il segreto salvato
+> risulta troncato e la funzione risponde 401 "Non autorizzato". Generane uno sicuro
+> dal SQL Editor con `select encode(extensions.gen_random_bytes(24), 'hex');`
+
 ```
 supabase secrets set VAPID_PUBLIC_KEY=... VAPID_PRIVATE_KEY=... VAPID_SUBJECT=mailto:tuaemail@dominio.it RESEND_API_KEY=re_... RESEND_FROM="IstruttoriCSAIn <onboarding@resend.dev>" CRON_SECRET=il_tuo_segreto
 ```
