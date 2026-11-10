@@ -372,7 +372,7 @@ export function GuidaButton() {
   )
 }
 
-function Guida({ aperto, onClose }: { aperto: boolean; onClose: () => void }) {
+export function Guida({ aperto, onClose }: { aperto: boolean; onClose: () => void }) {
   const { ruolo } = useAuth()
   const [apertaId, setApertaId] = useState<string | null>('intro')
 

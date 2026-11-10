@@ -1,28 +1,29 @@
+import { lazy, Suspense } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { RequireProfilo, RequireSessione } from '@/components/ProtectedRoute'
 import Layout from '@/components/Layout'
 import Login from '@/pages/Login'
 import ResetPassword from '@/pages/ResetPassword'
 import Benvenuto from '@/pages/Benvenuto'
-import Dashboard from '@/pages/Dashboard'
-import Profilo from '@/pages/Profilo'
-import Membri from '@/pages/Membri'
-import Corsi from '@/pages/Corsi'
-import Calendario from '@/pages/Calendario'
-import CorsoNuovo from '@/pages/CorsoNuovo'
-import CorsoDettaglio from '@/pages/CorsoDettaglio'
-import DiplomiCorso from '@/pages/DiplomiCorso'
-import Documenti from '@/pages/Documenti'
-import Moduli from '@/pages/Moduli'
-import Chat from '@/pages/Chat'
-import Standard from '@/pages/Standard'
-import Piattaforma from '@/pages/Piattaforma'
-import Notifiche from '@/pages/Notifiche'
-import Impostazioni from '@/pages/Impostazioni'
-import Registro from '@/pages/Registro'
 import NonTrovato from '@/pages/NonTrovato'
+const Dashboard = lazy(() => import('@/pages/Dashboard'))
+const Profilo = lazy(() => import('@/pages/Profilo'))
+const Membri = lazy(() => import('@/pages/Membri'))
+const Corsi = lazy(() => import('@/pages/Corsi'))
+const Calendario = lazy(() => import('@/pages/Calendario'))
+const CorsoNuovo = lazy(() => import('@/pages/CorsoNuovo'))
+const CorsoDettaglio = lazy(() => import('@/pages/CorsoDettaglio'))
+const DiplomiCorso = lazy(() => import('@/pages/DiplomiCorso'))
+const Documenti = lazy(() => import('@/pages/Documenti'))
+const Moduli = lazy(() => import('@/pages/Moduli'))
+const Chat = lazy(() => import('@/pages/Chat'))
+const Standard = lazy(() => import('@/pages/Standard'))
+const Piattaforma = lazy(() => import('@/pages/Piattaforma'))
+const Notifiche = lazy(() => import('@/pages/Notifiche'))
+const Impostazioni = lazy(() => import('@/pages/Impostazioni'))
+const Registro = lazy(() => import('@/pages/Registro'))
 import { isSupabaseConfigured } from '@/lib/supabase'
-import { Alert } from '@/components/ui'
+import { Alert, PageLoader } from '@/components/ui'
 
 export default function App() {
   return (
@@ -35,6 +36,9 @@ export default function App() {
           </Alert>
         </div>
       )}
+      {/* Le pagine si caricano su richiesta (code splitting): il primo avvio è più leggero.
+          Dentro il layout c'è un secondo Suspense, così barra e menù restano visibili. */}
+      <Suspense fallback={<PageLoader />}>
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/reset-password" element={<ResetPassword />} />
@@ -84,6 +88,7 @@ export default function App() {
         <Route path="/404" element={<NonTrovato />} />
         <Route path="*" element={<Navigate to="/404" replace />} />
       </Routes>
+      </Suspense>
     </>
   )
 }

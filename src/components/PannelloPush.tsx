@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { BellRing, BellOff, CheckCircle2, AlertTriangle, Loader2, Smartphone } from 'lucide-react'
+import { BellRing, BellOff, CheckCircle2, AlertTriangle, Loader2 } from 'lucide-react'
 import {
   statoPushDispositivo,
   attivaPush,
@@ -86,7 +86,7 @@ export function PannelloPush({ onCambio }: { onCambio?: () => void }) {
     <div className="rounded-lg border border-slate-200 p-4">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <p className="flex items-center gap-2 text-sm font-medium text-slate-800">
-          <Smartphone className="h-4 w-4 text-slate-400" /> Notifiche push
+          <BellRing className="h-4 w-4 text-slate-400" /> Notifiche push su questo dispositivo
         </p>
         {stato.isLoading ? <Spinner className="h-4 w-4 text-brand-600" /> : et && <Badge tono={et.tono}>{et.testo}</Badge>}
       </div>

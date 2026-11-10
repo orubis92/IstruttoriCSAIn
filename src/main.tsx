@@ -12,6 +12,29 @@ import './index.css'
 
 initSentry()
 
+// Dopo un nuovo rilascio, una scheda rimasta aperta può chiedere un pezzo di
+// codice che non esiste più: in quel caso ricarica una volta la pagina.
+window.addEventListener('vite:preloadError', (e) => {
+  e.preventDefault()
+  const chiave = 'ricaricato-dopo-aggiornamento'
+  try {
+    if (sessionStorage.getItem(chiave)) return
+    sessionStorage.setItem(chiave, '1')
+  } catch {
+    /* sessionStorage non disponibile */
+  }
+  window.location.reload()
+})
+window.addEventListener('load', () => {
+  setTimeout(() => {
+    try {
+      sessionStorage.removeItem('ricaricato-dopo-aggiornamento')
+    } catch {
+      /* ignora */
+    }
+  }, 10_000)
+})
+
 // Schermata di ripiego se un errore non gestito fa crashare l'interfaccia.
 function ErroreApp() {
   return (
