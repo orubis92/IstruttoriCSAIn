@@ -1,7 +1,13 @@
 import { useState, type FormEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Megaphone, Send, Activity, RefreshCw } from 'lucide-react'
-import { inviaAvvisoPiattaforma, listaAvvisiPiattaforma, statoInvioNotifiche } from '@/api/notifiche'
+import {
+  inviaAvvisoPiattaforma,
+  listaAvvisiPiattaforma,
+  statoInvioNotifiche,
+  scartaNotificheScadute,
+} from '@/api/notifiche'
+import type { StatoInvioNotifiche } from '@/lib/database.types'
 import { messaggioErrore } from '@/api/errors'
 import { useToast } from '@/components/Toast'
 import { Card, Field, Spinner, Badge, Alert } from '@/components/ui'
@@ -108,14 +114,45 @@ export function ComunicazioniPiattaforma() {
   )
 }
 
+/** Durata leggibile a partire da un numero di minuti. */
+function durata(minuti: number): string {
+  if (minuti < 60) return `${minuti} minuti`
+  const ore = Math.floor(minuti / 60)
+  if (ore < 48) return `${ore} ore`
+  return `${Math.floor(ore / 24)} giorni`
+}
+
+/** Traduce l'ultima risposta della funzione Edge in una diagnosi. */
+function diagnosiHttp(r: NonNullable<StatoInvioNotifiche['ultima_risposta_http']>): { tono: 'verde' | 'rosso' | 'giallo'; testo: string } {
+  const c = r.status_code
+  if (r.timed_out) return { tono: 'giallo', testo: 'La funzione non ha risposto in tempo (timeout). Se capita spesso, la coda è troppo lunga o un servizio esterno è lento.' }
+  if (c === 200) return { tono: 'verde', testo: 'La funzione Edge risponde correttamente.' }
+  if (c === 401) return { tono: 'rosso', testo: 'La funzione risponde "Non autorizzato": il CRON_SECRET nel job pg_cron è diverso da quello impostato nei segreti della funzione.' }
+  if (c === 404) return { tono: 'rosso', testo: 'Funzione non trovata: non è pubblicata oppure l\'indirizzo nel job pg_cron è sbagliato.' }
+  if (c && c >= 500) return { tono: 'rosso', testo: 'La funzione va in errore all\'avvio o durante l\'invio: di solito mancano i segreti VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY.' }
+  return { tono: 'giallo', testo: c ? `Risposta inattesa (HTTP ${c}).` : 'Nessun codice di risposta: la chiamata non è partita (rete o indirizzo).' }
+}
+
 /** Salute del sistema di invio push/email (cron + funzione Edge). */
 export function StatoInvio() {
+  const toast = useToast()
   const q = useQuery({ queryKey: ['stato-invio'], queryFn: statoInvioNotifiche, refetchInterval: 60_000 })
+  const scarta = useMutation({
+    mutationFn: scartaNotificheScadute,
+    onSuccess: (n) => {
+      toast.successo(`${n} ${n === 1 ? 'notifica vecchia scartata' : 'notifiche vecchie scartate'}.`)
+      void q.refetch()
+    },
+    onError: (e) => toast.errore(messaggioErrore(e)),
+  })
   const d = q.data
   const minutiAttesa = d?.coda.piu_vecchia_in_attesa
     ? Math.floor((Date.now() - new Date(d.coda.piu_vecchia_in_attesa).getTime()) / 60_000)
     : 0
   const bloccato = minutiAttesa > 15
+  const http = d?.ultima_risposta_http ?? null
+  const diag = http ? diagnosiHttp(http) : null
+  const run = d?.ultima_esecuzione_cron ?? null
 
   return (
     <Card className="mt-4 p-5">
@@ -130,35 +167,81 @@ export function StatoInvio() {
       {q.isLoading ? (
         <Spinner className="h-5 w-5 text-brand-600" />
       ) : q.isError || !d ? (
-        <Alert tono="rosso">Impossibile leggere lo stato: la migrazione 20 è stata eseguita?</Alert>
+        <Alert tono="rosso">Impossibile leggere lo stato: le migrazioni 20 e 21 sono state eseguite?</Alert>
       ) : (
-        <>
+        <div className="space-y-3">
           {d.cron_programmato === false && (
-            <div className="mb-3">
-              <Alert tono="rosso">
-                Il job pianificato <code>invia-notifiche</code> non esiste: promemoria e push non partono. Esegui la
-                il passo 7 di <code>NOTIFICHE_SETUP.md</code>.
-              </Alert>
-            </div>
+            <Alert tono="rosso">
+              Il job pianificato <code>invia-notifiche</code> non esiste: promemoria e push non partono. Segui il
+              passo 7 di <code>NOTIFICHE_SETUP.md</code>.
+            </Alert>
           )}
           {bloccato && (
-            <div className="mb-3">
-              <Alert tono="giallo">
-                Ci sono notifiche in attesa da {minutiAttesa} minuti: la funzione Edge <code>invia-notifiche</code>{' '}
-                potrebbe non essere pubblicata o i segreti (VAPID, CRON_SECRET) non essere impostati.
-              </Alert>
+            <Alert tono="giallo">
+              La notifica più vecchia è in attesa da <b>{durata(minutiAttesa)}</b>: l'invio non sta funzionando.
+              {diag ? ' Vedi la diagnosi qui sotto.' : ' Nessuna risposta recente della funzione Edge: il job potrebbe non chiamarla.'}
+            </Alert>
+          )}
+          {d.coda.scadute_scartabili > 0 && (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm">
+              <span className="text-slate-600">
+                <b>{d.coda.scadute_scartabili}</b> push/email in coda da oltre 12 ore. Conviene scartarle prima di
+                riattivare l'invio, per non mandare una raffica di notifiche vecchie (restano nel centro notifiche).
+              </span>
+              <button className="btn-secondary" onClick={() => scarta.mutate()} disabled={scarta.isPending}>
+                {scarta.isPending && <Spinner className="h-4 w-4" />} Scarta le vecchie
+              </button>
             </div>
           )}
+
           <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-5">
             <Dato etichetta="In attesa" valore={String(d.coda.in_attesa)} />
             <Dato etichetta="Inviate (24h)" valore={String(d.coda.inviate_24h)} />
             <Dato etichetta="Errori (24h)" valore={String(d.coda.errori_24h)} />
             <Dato etichetta="Dispositivi push" valore={String(d.coda.dispositivi)} />
-            <Dato etichetta="Ultimo invio" valore={d.coda.ultimo_invio ? formatDataOra(d.coda.ultimo_invio) : '—'} />
+            <Dato etichetta="Ultimo invio" valore={d.coda.ultimo_invio ? formatDataOra(d.coda.ultimo_invio) : 'mai'} />
           </dl>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-lg border border-slate-100 p-3 text-sm">
+              <p className="label">Ultimo giro del job (pg_cron)</p>
+              {run ? (
+                <>
+                  <p className="text-slate-700">
+                    <Badge tono={run.status === 'succeeded' ? 'verde' : run.status === 'failed' ? 'rosso' : 'grigio'}>
+                      {run.status}
+                    </Badge>{' '}
+                    {formatDataOra(run.start_time)}
+                  </p>
+                  {run.status === 'failed' && run.messaggio && (
+                    <p className="mt-1 break-words text-xs text-red-700">{run.messaggio}</p>
+                  )}
+                </>
+              ) : (
+                <p className="text-slate-400">Nessuna esecuzione registrata.</p>
+              )}
+            </div>
+            <div className="rounded-lg border border-slate-100 p-3 text-sm">
+              <p className="label">Ultima risposta della funzione Edge</p>
+              {http && diag ? (
+                <>
+                  <p className="text-slate-700">
+                    <Badge tono={diag.tono}>{http.status_code ?? '—'}</Badge> {formatDataOra(http.created)}
+                  </p>
+                  <p className={`mt-1 text-xs ${diag.tono === 'verde' ? 'text-green-700' : 'text-red-700'}`}>{diag.testo}</p>
+                  {http.status_code !== 200 && http.messaggio && (
+                    <p className="mt-1 break-words font-mono text-[11px] text-slate-500">{http.messaggio}</p>
+                  )}
+                </>
+              ) : (
+                <p className="text-slate-400">Nessuna risposta nelle ultime ore.</p>
+              )}
+            </div>
+          </div>
+
           {d.ultimi_errori.length > 0 && (
-            <div className="mt-4">
-              <p className="label">Ultimi errori</p>
+            <div>
+              <p className="label">Ultimi errori di invio</p>
               <ul className="space-y-1 text-xs text-slate-600">
                 {d.ultimi_errori.map((e, i) => (
                   <li key={i} className="break-words">
@@ -169,7 +252,7 @@ export function StatoInvio() {
               </ul>
             </div>
           )}
-        </>
+        </div>
       )}
     </Card>
   )

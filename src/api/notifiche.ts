@@ -206,6 +206,13 @@ export async function statoRigaCoda(
   return data as { stato: 'IN_ATTESA' | 'INVIATA' | 'ERRORE'; errore: string | null; inviata_il: string | null } | null
 }
 
+/** Scarta le push/email in coda da oltre 12 ore (solo programmatori). */
+export async function scartaNotificheScadute(): Promise<number> {
+  const { data, error } = await supabase.rpc('scarta_notifiche_scadute')
+  if (error) throw error
+  return Number(data ?? 0)
+}
+
 export async function statoInvioNotifiche(): Promise<StatoInvioNotifiche> {
   const { data, error } = await supabase.rpc('stato_invio_notifiche')
   if (error) throw error

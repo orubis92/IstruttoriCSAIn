@@ -439,9 +439,15 @@ export interface StatoInvioNotifiche {
     errori_24h: number
     ultimo_invio: string | null
     dispositivi: number
+    /** righe in attesa da oltre 12 ore (verranno scartate) */
+    scadute_scartabili: number
   }
   ultimi_errori: { creato_il: string; canale: string; tipo: string; errore: string; stato: string }[]
   cron_programmato: boolean | null
+  /** ultima esecuzione del job pg_cron 'invia-notifiche' (null se non leggibile) */
+  ultima_esecuzione_cron: { status: string; start_time: string; messaggio: string | null } | null
+  /** ultima risposta HTTP ricevuta da pg_net (≈ ultime 6 ore; null se assente) */
+  ultima_risposta_http: { status_code: number | null; created: string; messaggio: string | null; timed_out: boolean | null } | null
 }
 
 export type StatoProposta = 'IN_REVISIONE' | 'ACCETTATA' | 'RIFIUTATA'

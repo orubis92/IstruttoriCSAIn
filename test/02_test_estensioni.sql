@@ -376,6 +376,43 @@ select test.verifica('con orari personali spenti non arrivano promemoria',
 delete from giornate where id in ('61080000-0000-4000-8000-0000000000d1','61080000-0000-4000-8000-0000000000d2','61080000-0000-4000-8000-0000000000d3');
 set role authenticated;
 
+
+\echo ''
+\echo '== 20. Coda notifiche: scadenza e diagnostica =='
+reset role;
+set request.jwt.claim.sub = '';
+insert into notifiche_coda (utente_id, tipo, canale, titolo, creato_il) values
+  ('c0000000-0000-4000-8000-000000000005','MESSAGGIO','PUSH','Vecchio messaggio', now() - interval '100 days'),
+  ('c0000000-0000-4000-8000-000000000005','MESSAGGIO','PUSH','Messaggio recente', now() - interval '1 hour');
+set role authenticated;
+
+set request.jwt.claim.sub = 'a0000000-0000-4000-8000-000000000002';   -- admin Alfa
+select test.vietato('un amministratore non puo scartare la coda',
+  $$select scarta_notifiche_scadute()$$);
+
+set request.jwt.claim.sub = 'a0000000-0000-4000-8000-000000000001';   -- PROGRAMMATORE
+select test.verifica('lo stato segnala le righe scadute da scartare',
+  $$select ((stato_invio_notifiche()->'coda'->>'scadute_scartabili')::int >= 1)::int$$, 1);
+select test.verifica('il programmatore scarta le righe in coda da oltre 12 ore',
+  $$select (scarta_notifiche_scadute() >= 1)::int$$, 1);
+select test.verifica('dopo lo scarto non restano righe scadute',
+  $$select (stato_invio_notifiche()->'coda'->>'scadute_scartabili')::int$$, 0);
+select test.verifica('gli scarti non contano come errori di invio',
+  $$select (stato_invio_notifiche()->'coda'->>'errori_24h')::int$$, 0);
+
+reset role;
+set request.jwt.claim.sub = '';
+select test.verifica('la riga recente resta in coda',
+  $$select count(*)::int from notifiche_coda where titolo = 'Messaggio recente' and stato = 'IN_ATTESA'$$, 1);
+select test.verifica('accoda_promemoria scarta da solo le righe scadute',
+  $$with x as (insert into notifiche_coda (utente_id, tipo, canale, titolo, creato_il)
+               values ('c0000000-0000-4000-8000-000000000005','MESSAGGIO','PUSH','Altro vecchio', now() - interval '2 days') returning 1)
+    select count(*)::int from x$$, 1);
+select accoda_promemoria();
+select test.verifica('la riga vecchia e stata scartata dal giro automatico',
+  $$select count(*)::int from notifiche_coda where titolo = 'Altro vecchio' and stato = 'ERRORE'$$, 1);
+set role authenticated;
+
 reset role;
 \echo ''
 \echo '=============================================='
